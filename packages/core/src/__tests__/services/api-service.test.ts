@@ -368,7 +368,8 @@ describe('APIService', () => {
         }
       };
 
-      await expect(apiService.save(mockSaveData)).rejects.toThrow(httpError);
+      // The error should be thrown
+      await expect(apiService.save(mockSaveData)).rejects.toThrow('HTTP Error 404: Not Found');
       expect(mockEventBus.emit).toHaveBeenCalledWith('api:save:error', {
         data: mockSaveData,
         error: httpError

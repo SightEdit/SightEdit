@@ -24,8 +24,12 @@ The fastest way to get started with SightEdit is using the CDN:
     <title>SightEdit Demo</title>
 </head>
 <body>
-    <h1 data-sight="text">Click to edit this heading</h1>
-    <p data-sight="richtext">This paragraph supports <strong>rich text</strong> editing.</p>
+    <!-- New concise format -->
+    <h1 data-sightedit="text">Click to edit this heading</h1>
+    <p data-sightedit="richtext">This paragraph supports <strong>rich text</strong> editing.</p>
+    
+    <!-- With properties -->
+    <img data-sightedit="image[maxSize:5MB]" src="photo.jpg" alt="Photo">
     
     <script src="https://cdn.sightedit.com/v1/sightedit.min.js"></script>
     <script>

@@ -450,7 +450,7 @@ describe('JSONValidator', () => {
     });
 
     it('should reject invalid object keys', () => {
-      const invalidKeyJson = JSON.stringify({ 'x'.repeat(101): 'value' });
+      const invalidKeyJson = JSON.stringify({ ['x'.repeat(101)]: 'value' });
       
       const result = JSONValidator.validate(invalidKeyJson);
       

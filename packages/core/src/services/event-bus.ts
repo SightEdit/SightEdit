@@ -108,16 +108,15 @@ export class EventBus {
     }
 
     const eventListeners = this.listeners.get(event)!;
+    eventListeners.add(listener);
     
-    // Check for memory leaks
-    if (eventListeners.size >= this.maxListeners) {
+    // Check for memory leaks after adding the listener
+    if (eventListeners.size > this.maxListeners) {
       console.warn(
         `EventBus: Maximum listeners (${this.maxListeners}) exceeded for event "${String(event)}". ` +
         'Possible memory leak detected.'
       );
     }
-
-    eventListeners.add(listener);
 
     if (this.debugMode) {
       console.debug(`EventBus: Listener added for "${String(event)}". Total: ${eventListeners.size}`);

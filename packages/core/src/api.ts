@@ -17,6 +17,7 @@ import {
 } from './utils/error-handler';
 import { log } from './utils/logger';
 import { sentry } from './utils/sentry-integration';
+import { BatchManager } from './batch-manager';
 
 interface APIConfig {
   endpoint: string;
@@ -25,8 +26,8 @@ interface APIConfig {
   debug?: boolean;
   circuitBreakerOptions?: {
     failureThreshold?: number;
-    timeoutMs?: number;
-    monitoringPeriodMs?: number;
+    timeout?: number;
+    monitoringPeriod?: number;
   };
 }
 
@@ -41,6 +42,7 @@ export class SightEditAPI {
   private isOffline = !navigator.onLine;
   private retryDelay = 1000;
   private maxRetries = 3;
+  private batchManager: BatchManager | null = null;
   
   // Race condition protection
   private pendingRequests = new Map<string, Promise<any>>();
@@ -82,8 +84,8 @@ export class SightEditAPI {
     // Initialize circuit breaker
     this.circuitBreaker = new CircuitBreaker(
       config.circuitBreakerOptions?.failureThreshold || 5,
-      config.circuitBreakerOptions?.timeoutMs || 60000,
-      config.circuitBreakerOptions?.monitoringPeriodMs || 10000
+      config.circuitBreakerOptions?.timeout || 60000,
+      config.circuitBreakerOptions?.monitoringPeriod || 10000
     );
     
     this.setupOfflineHandling();

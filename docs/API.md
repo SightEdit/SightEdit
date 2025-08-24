@@ -291,6 +291,14 @@ interface EditableProps {
 </Editable>
 ```
 
+Or use the new data attribute format directly:
+
+```tsx
+<h1 data-sightedit="text#hero-title[required,placeholder:'Enter title...']">
+  Editable Title
+</h1>
+```
+
 ### React Hooks
 
 #### useSightEdit()
@@ -393,11 +401,14 @@ Basic directive for making elements editable.
 
 ```vue
 <template>
-  <!-- Auto-detect editor type -->
-  <h1 v-sight="'page-title'">Title</h1>
+  <!-- New format (recommended) -->
+  <h1 data-sightedit="text#page-title">Title</h1>
   
-  <!-- With modifiers -->
-  <p v-sight.required.inline="'page-subtitle'">Subtitle</p>
+  <!-- Vue directive (also supported) -->
+  <p v-sight="'page-subtitle'">Subtitle</p>
+  
+  <!-- With properties -->
+  <div data-sightedit="richtext#content[required,maxLength:500]">Content</div>
 </template>
 ```
 
@@ -407,6 +418,7 @@ Advanced directive with configuration options.
 
 ```vue
 <template>
+  <!-- Vue directive format -->
   <div v-editable="{
     sight: 'page-content',
     type: 'richtext',
@@ -415,6 +427,11 @@ Advanced directive with configuration options.
     schema: { maxLength: 500 },
     onSave: handleSave
   }">
+    Content here...
+  </div>
+  
+  <!-- Or use data attribute (cleaner) -->
+  <div data-sightedit='{"type":"richtext","id":"page-content","required":true,"maxLength":500}'>
     Content here...
   </div>
 </template>

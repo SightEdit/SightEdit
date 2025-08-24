@@ -282,6 +282,36 @@ npm run test
 npm run lint
 ```
 
+### Data Attribute Format
+
+SightEdit now supports a cleaner, more concise data attribute format:
+
+```html
+<!-- Simple format -->
+<div data-sightedit="text">Editable text</div>
+
+<!-- With ID -->
+<div data-sightedit="text#hero-title">Hero Title</div>
+
+<!-- With properties (short syntax) -->
+<div data-sightedit="text#title[required,maxLength:100,placeholder:'Enter title']">
+  Title
+</div>
+
+<!-- JSON format for complex configurations -->
+<div data-sightedit='{"type":"richtext","id":"content","toolbar":["bold","italic","link"],"maxLength":500}'>
+  Rich content
+</div>
+```
+
+The parser (`src/parser.ts`) handles multiple formats:
+- Simple: `"text"`
+- With ID: `"text#id"`
+- With properties: `"text#id[prop1,prop2:value]"`
+- JSON: Full configuration object
+
+Legacy `data-sight` attributes are still supported for backward compatibility.
+
 ## Creating Custom Editors
 
 ### Basic Editor Structure

@@ -53,11 +53,13 @@ describe('EventBus', () => {
 
     it('should warn when max listeners exceeded', () => {
       const smallEventBus = new EventBus({ maxListeners: 2 });
-      const listener = jest.fn();
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
+      const listener3 = jest.fn();
 
-      smallEventBus.on('core:initialized', listener);
-      smallEventBus.on('core:initialized', listener);
-      smallEventBus.on('core:initialized', listener); // Should trigger warning
+      smallEventBus.on('core:initialized', listener1);
+      smallEventBus.on('core:initialized', listener2);
+      smallEventBus.on('core:initialized', listener3); // Should trigger warning
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Maximum listeners (2) exceeded')

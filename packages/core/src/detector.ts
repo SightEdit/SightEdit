@@ -1,6 +1,7 @@
 import { DetectedElement, ElementType, EditMode, ElementContext, ElementSchema } from './types';
 import { SafeJSONParser } from './utils/safe-json';
 import { ValidationEngine } from './utils/validation-engine';
+import { parseSightEditAttribute, ParsedConfig } from './parser';
 
 export type { DetectedElement };
 
@@ -15,9 +16,13 @@ export class ElementDetector {
 
   static scan(root: HTMLElement = document.body): DetectedElement[] {
     const elements: DetectedElement[] = [];
-    const sightElements = root.querySelectorAll('[data-sight]');
+    
+    // Support both old format (data-sight) and new format (data-sightedit)
+    const oldFormatElements = root.querySelectorAll('[data-sight]');
+    const newFormatElements = root.querySelectorAll('[data-sightedit]');
 
-    sightElements.forEach(element => {
+    // Process old format elements
+    oldFormatElements.forEach(element => {
       if (element instanceof HTMLElement && !element.dataset.sightEditReady) {
         const detected = this.detectElement(element);
         if (detected) {
@@ -26,7 +31,83 @@ export class ElementDetector {
       }
     });
 
+    // Process new format elements
+    newFormatElements.forEach(element => {
+      if (element instanceof HTMLElement && !element.dataset.sightEditReady) {
+        const detected = this.detectElementNewFormat(element);
+        if (detected) {
+          elements.push(detected);
+        }
+      }
+    });
+
     return elements;
+  }
+
+  /**
+   * Detect element with new data-sightedit format
+   */
+  static detectElementNewFormat(element: HTMLElement): DetectedElement | null {
+    const sightEditValue = element.dataset.sightedit;
+    if (!sightEditValue) return null;
+
+    // Parse the new format
+    const config = parseSightEditAttribute(sightEditValue);
+    if (!config) {
+      console.warn('Invalid data-sightedit value:', sightEditValue);
+      return null;
+    }
+
+    const type = config.type || this.detectType(element);
+    const mode = config.mode as EditMode || this.detectMode(element);
+    const context = this.extractContext(element);
+    
+    // Build schema from parsed config
+    const schema: ElementSchema = {
+      type,
+      label: config.label,
+      placeholder: config.placeholder,
+      required: config.required,
+      minLength: config.minLength,
+      maxLength: config.maxLength,
+      min: config.min,
+      max: config.max,
+      options: config.options
+    };
+
+    // Apply validation if specified
+    if (config.validation) {
+      schema.validation = (value: any) => {
+        const result = ValidationEngine.validate(value, config.validation);
+        if (!result.isValid) {
+          throw new Error(result.errors.join(', '));
+        }
+        return result.sanitizedValue;
+      };
+    }
+
+    // Merge config into context
+    context.config = config;
+
+    return {
+      element,
+      type,
+      sight: config.id || element.dataset.sightId || this.generateSightId(element),
+      mode,
+      id: config.id,
+      context,
+      schema: Object.keys(schema).length > 1 ? schema : undefined
+    };
+  }
+
+  /**
+   * Generate a unique sight ID for elements without explicit IDs
+   */
+  private static generateSightId(element: HTMLElement): string {
+    const tag = element.tagName.toLowerCase();
+    const className = element.className.split(' ')[0] || '';
+    const index = Array.from(element.parentElement?.children || []).indexOf(element);
+    return `${tag}${className ? `-${className}` : ''}-${index}`;
   }
 
   static detectElement(element: HTMLElement): DetectedElement | null {

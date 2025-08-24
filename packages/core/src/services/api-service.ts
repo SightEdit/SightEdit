@@ -132,13 +132,7 @@ export class APIServiceImpl implements APIService {
       return this.requestQueue.get(requestKey);
     }
 
-    const headers = await this.getAuthHeaders();
-    const request = this.client.request<any>(`/content/${encodeURIComponent(sight)}`, {
-      method: 'GET',
-      headers,
-      retries: 2
-    });
-
+    const request = this.performGet(sight);
     this.requestQueue.set(requestKey, request);
 
     try {
@@ -151,6 +145,15 @@ export class APIServiceImpl implements APIService {
     } finally {
       this.requestQueue.delete(requestKey);
     }
+  }
+
+  private async performGet(sight: string): Promise<any> {
+    const headers = await this.getAuthHeaders();
+    return this.client.request<any>(`/content/${encodeURIComponent(sight)}`, {
+      method: 'GET',
+      headers,
+      retries: 2
+    });
   }
 
   // Clear all pending requests
