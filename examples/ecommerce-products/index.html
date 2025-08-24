@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Commerce Product Management Example</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      font-size: 24px;
+      color: #1f2937;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      color: #4b5563;
+      margin: 20px 0 15px;
+    }
+    
+    /* Featured Products Section */
+    .featured-products {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    
+    .product-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .product-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: #f9fafb;
+    }
+    
+    .product-info {
+      padding: 16px;
+    }
+    
+    .product-name {
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .product-price {
+      font-size: 20px;
+      color: #3b82f6;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .product-description {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    
+    .product-stock {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .product-stock.low {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    .product-stock.out {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    
+    /* Hero Section */
+    .hero-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 60px 40px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      position: relative;
+    }
+    
+    .hero-content {
+      max-width: 600px;
+    }
+    
+    .hero-title {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .hero-description {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 24px;
+    }
+    
+    .hero-button {
+      display: inline-block;
+      padding: 12px 24px;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+    
+    .hero-button:hover {
+      transform: scale(1.05);
+    }
+    
+    /* Categories Grid */
+    .categories-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    
+    .category-card {
+      text-align: center;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .category-card:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    
+    .category-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .category-name {
+      font-size: 14px;
+      color: #4b5563;
+    }
+    
+    /* Info Box */
+    .info-box {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .info-box h3 {
+      color: #92400e;
+      margin-bottom: 8px;
+    }
+    
+    .info-box p {
+      color: #78350f;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>E-Commerce Product Management Demo</h1>
+      <p style="color: #6b7280; margin-top: 8px;">
+        Demonstrating advanced SightEdit features with backend schema support
+      </p>
+    </header>
+    
+    <div class="info-box">
+      <h3>🎯 How to Use This Demo</h3>
+      <p>
+        1. Press <strong>Ctrl/Cmd + E</strong> to enable edit mode<br>
+        2. Click on the Featured Products section to replace products from database<br>
+        3. Click on the Hero Section to use the visual HTML designer<br>
+        4. All changes are schema-driven from the backend, reducing HTML clutter
+      </p>
+    </div>
+    
+    <!-- Hero Section - Editable with HTML Designer -->
+    <section 
+      class="hero-section" 
+      data-sight="hero.main"
+      data-sight-type="html-designer">
+      <div class="hero-content">
+        <h2 class="hero-title">Summer Collection 2024</h2>
+        <p class="hero-description">
+          Discover our latest arrivals with up to 40% off on selected items. 
+          Limited time offer - don't miss out!
+        </p>
+        <a href="#" class="hero-button">Shop Now</a>
+      </div>
+    </section>
+    
+    <!-- Featured Products - Replaceable from Database -->
+    <section 
+      class="featured-products"
+      data-sight="products.featured"
+      data-sight-type="product-selector"
+      data-products='[
+        {"id": 1, "name": "Premium Headphones", "price": 299.99, "image": "https://via.placeholder.com/300x200/4F46E5/ffffff?text=Headphones", "description": "Wireless noise-cancelling headphones", "stock": 15},
+        {"id": 2, "name": "Smart Watch", "price": 399.99, "image": "https://via.placeholder.com/300x200/7C3AED/ffffff?text=Smart+Watch", "description": "Fitness tracking and notifications", "stock": 8},
+        {"id": 3, "name": "Laptop Stand", "price": 49.99, "image": "https://via.placeholder.com/300x200/EC4899/ffffff?text=Laptop+Stand", "description": "Ergonomic aluminum laptop stand", "stock": 25}
+      ]'>
+      <h2 class="section-title">Featured Products</h2>
+      <div class="products-grid">
+        <!-- Initial products -->
+        <div class="product-card">
+          <img src="https://via.placeholder.com/300x200/4F46E5/ffffff?text=Headphones" alt="Premium Headphones" class="product-image">
+          <div class="product-info">
+            <h3 class="product-name">Premium Headphones</h3>
+            <div class="product-price">$299.99</div>
+            <p class="product-description">Wireless noise-cancelling headphones with superior sound quality</p>
+            <span class="product-stock">15 in stock</span>
+          </div>
+        </div>
+        
+        <div class="product-card">
+          <img src="https://via.placeholder.com/300x200/7C3AED/ffffff?text=Smart+Watch" alt="Smart Watch" class="product-image">
+          <div class="product-info">
+            <h3 class="product-name">Smart Watch</h3>
+            <div class="product-price">$399.99</div>
+            <p class="product-description">Fitness tracking and notifications on your wrist</p>
+            <span class="product-stock low">8 in stock</span>
+          </div>
+        </div>
+        
+        <div class="product-card">
+          <img src="https://via.placeholder.com/300x200/EC4899/ffffff?text=Laptop+Stand" alt="Laptop Stand" class="product-image">
+          <div class="product-info">
+            <h3 class="product-name">Laptop Stand</h3>
+            <div class="product-price">$49.99</div>
+            <p class="product-description">Ergonomic aluminum laptop stand for better posture</p>
+            <span class="product-stock">25 in stock</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Categories Section -->
+    <section class="categories-section" data-sight="categories.grid">
+      <h2 class="section-title">Shop by Category</h2>
+      <div class="categories-grid">
+        <div class="category-card">
+          <div class="category-icon">💻</div>
+          <div class="category-name">Electronics</div>
+        </div>
+        <div class="category-card">
+          <div class="category-icon">👕</div>
+          <div class="category-name">Clothing</div>
+        </div>
+        <div class="category-card">
+          <div class="category-icon">🏠</div>
+          <div class="category-name">Home & Garden</div>
+        </div>
+        <div class="category-card">
+          <div class="category-icon">⚽</div>
+          <div class="category-name">Sports</div>
+        </div>
+        <div class="category-card">
+          <div class="category-icon">📚</div>
+          <div class="category-name">Books</div>
+        </div>
+        <div class="category-card">
+          <div class="category-icon">🎮</div>
+          <div class="category-name">Gaming</div>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+  <!-- Include SightEdit -->
+  <script src="../../packages/core/dist/sightedit.js"></script>
+  <script>
+    // Initialize SightEdit with schema support
+    const sightEdit = new SightEdit({
+      apiUrl: 'http://localhost:3001/api',
+      debug: true,
+      theme: {
+        primaryColor: '#8b5cf6'
+      },
+      // Schema registry configuration
+      schemaRegistry: {
+        endpoint: 'http://localhost:3001/api/schema',
+        cache: true,
+        ttl: 300000 // 5 minutes
+      },
+      // Custom editor mappings
+      editors: {
+        'product-selector': 'ProductSelectorEditor',
+        'html-designer': 'HTMLDesignerEditor'
+      }
+    });
+    
+    // Listen for product changes
+    document.querySelector('[data-sight="products.featured"]')?.addEventListener('productsChanged', (e) => {
+      console.log('Products changed:', e.detail.products);
+      // Update the display
+      updateProductsDisplay(e.detail.products);
+    });
+    
+    function updateProductsDisplay(products) {
+      const grid = document.querySelector('[data-sight="products.featured"] .products-grid');
+      if (!grid) return;
+      
+      grid.innerHTML = '';
+      
+      products.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        
+        const stockClass = product.stock < 10 ? 'low' : product.stock === 0 ? 'out' : '';
+        const stockText = product.stock > 0 ? `${product.stock} in stock` : 'Out of stock';
+        
+        card.innerHTML = `
+          <img src="${product.image}" alt="${product.name}" class="product-image">
+          <div class="product-info">
+            <h3 class="product-name">${product.name}</h3>
+            <div class="product-price">$${product.price.toFixed(2)}</div>
+            <p class="product-description">${product.description}</p>
+            <span class="product-stock ${stockClass}">${stockText}</span>
+          </div>
+        `;
+        
+        grid.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>

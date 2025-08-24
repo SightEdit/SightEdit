@@ -1,0 +1,256 @@
+# ================================================================================
+# Container Security Scanning Configuration
+# Comprehensive security scanning for SightEdit Docker images
+# ================================================================================
+
+# Trivy Security Scanner Configuration
+trivy:
+  # Global settings
+  global:
+    cache-dir: "/tmp/.cache/trivy"
+    timeout: "10m"
+    format: "json"
+    exit-code: 1
+    skip-update: false
+
+  # Image scanning settings
+  image:
+    # Skip files that don't affect security
+    skip-files:
+      - "/usr/share/nginx/html/**/*.js.map"
+      - "/usr/share/nginx/html/**/*.css.map"
+      - "/app/node_modules/**/*.md"
+      - "/app/node_modules/**/*.txt"
+    
+    # Security levels to report
+    severity:
+      - "UNKNOWN"
+      - "LOW" 
+      - "MEDIUM"
+      - "HIGH"
+      - "CRITICAL"
+    
+    # Vulnerability types to scan
+    vuln-type:
+      - "os"
+      - "library"
+      - "secret"
+    
+    # Skip certain vulnerabilities (with justification)
+    ignore:
+      # Example: Skip npm audit issues that are false positives
+      # - "CVE-2021-44906"  # Minimist - false positive in build tools only
+    
+    # Custom policies
+    policy: |
+      package:
+        - name: "node"
+          version: ">=18.19.0"
+          severity: "HIGH"
+        - name: "nginx"  
+          version: ">=1.25.3"
+          severity: "HIGH"
+
+# Grype Security Scanner Configuration  
+grype:
+  # Output format
+  output: "json"
+  
+  # Fail on severity
+  fail-on: "medium"
+  
+  # Scope of the scan
+  scope: "all-layers"
+  
+  # Configuration file for custom rules
+  config: |
+    # Custom vulnerability matching rules
+    ignore:
+      # Ignore vulnerabilities in development dependencies
+      - vulnerability: "GHSA-*"
+        package:
+          name: "jest"
+          type: "npm"
+    
+    # Match configuration
+    match:
+      java:
+        using-cpes: true
+      golang:
+        using-cpes: true
+      javascript:
+        using-cpes: true
+
+# Snyk Configuration for JavaScript vulnerabilities
+snyk:
+  # Authentication (use SNYK_TOKEN environment variable)
+  auth: "${SNYK_TOKEN}"
+  
+  # Project settings
+  project-name: "sightedit"
+  
+  # Scan settings
+  severity-threshold: "medium"
+  
+  # Policy file for custom rules
+  policy: |
+    # Snyk policy file
+    version: v1.25.0
+    
+    ignore:
+      # Ignore low severity issues in development dependencies
+      "SNYK-JS-*":
+        - "*":
+            reason: "Development dependency, not in production"
+            expires: "2024-12-31T23:59:59.999Z"
+
+# Docker Scout Configuration
+docker-scout:
+  # Enable/disable different scan types
+  cves: true
+  base-image-vulnerabilities: true
+  
+  # Policy file
+  policy: |
+    # Docker Scout policy
+    rules:
+      - id: "critical-cve"
+        description: "Critical CVEs must be fixed"
+        level: "error"
+        criteria:
+          - cve_severity: "critical"
+      
+      - id: "base-image-outdated"
+        description: "Base images should be up to date"
+        level: "warning"
+        criteria:
+          - base_image_age: "> 30 days"
+
+# Clair Configuration
+clair:
+  # API endpoint
+  api: "http://clair:6060"
+  
+  # Authentication
+  auth:
+    type: "basic"
+    
+  # Scan configuration
+  vulnerabilities:
+    updaters:
+      - "debian"
+      - "ubuntu" 
+      - "rhel"
+      - "oracle"
+      - "alpine"
+    
+  # Notification configuration
+  notification:
+    webhook:
+      endpoint: "http://webhook-service:8080/clair"
+
+# Custom Security Rules
+custom-rules:
+  # File system security checks
+  filesystem:
+    - name: "no-root-user"
+      description: "Container should not run as root user"
+      check: "USER != root"
+      severity: "HIGH"
+    
+    - name: "no-sudo-access"
+      description: "Container should not have sudo access"
+      check: "!/usr/bin/sudo"
+      severity: "MEDIUM"
+    
+    - name: "no-ssh-keys"
+      description: "No SSH keys should be present"
+      check: "!/.ssh/"
+      severity: "HIGH"
+  
+  # Network security checks
+  network:
+    - name: "exposed-ports-minimal"
+      description: "Only necessary ports should be exposed"
+      allowed-ports: [3000, 8080]
+      severity: "MEDIUM"
+  
+  # Secret scanning
+  secrets:
+    patterns:
+      - name: "aws-access-key"
+        pattern: "AKIA[0-9A-Z]{16}"
+        severity: "CRITICAL"
+      
+      - name: "private-key"
+        pattern: "-----BEGIN PRIVATE KEY-----"
+        severity: "CRITICAL"
+      
+      - name: "database-password"
+        pattern: "password\\s*=\\s*[\"'][^\"']{8,}[\"']"
+        severity: "HIGH"
+
+# Compliance scanning
+compliance:
+  # CIS Docker Benchmark
+  cis-docker:
+    enabled: true
+    version: "1.6.0"
+    
+  # NIST guidelines
+  nist:
+    enabled: true
+    framework: "800-53"
+  
+  # SOC2 compliance
+  soc2:
+    enabled: true
+    type-ii: true
+
+# Reporting configuration
+reporting:
+  formats:
+    - "json"
+    - "sarif"
+    - "html"
+    - "table"
+  
+  output-dir: "/tmp/security-reports"
+  
+  # Report aggregation
+  aggregate:
+    enabled: true
+    by-severity: true
+    by-package: true
+  
+  # Notification settings
+  notifications:
+    slack:
+      enabled: false
+      webhook: "${SLACK_WEBHOOK_URL}"
+      channel: "#security-alerts"
+    
+    email:
+      enabled: false
+      smtp-server: "${SMTP_SERVER}"
+      recipients: ["security@sightedit.com"]
+
+# Integration settings
+integrations:
+  # CI/CD integration
+  ci-cd:
+    fail-on-critical: true
+    fail-on-high: false
+    fail-on-medium: false
+    
+    # Quality gates
+    quality-gates:
+      max-critical: 0
+      max-high: 5
+      max-medium: 20
+  
+  # Registry integration
+  registry:
+    scan-on-push: true
+    scan-schedule: "daily"
+    retention-days: 30

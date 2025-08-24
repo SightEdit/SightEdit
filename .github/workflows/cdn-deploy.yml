@@ -1,0 +1,126 @@
+name: Deploy to CDN
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Deploy to CDN
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.release.tag_name || format('v{0}', github.event.inputs.version) }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+    
+    - name: Build packages
+      run: npm run build
+    
+    - name: Prepare CDN files
+      run: |
+        mkdir -p cdn-dist
+        cp packages/core/dist/sightedit.min.js cdn-dist/
+        cp packages/core/dist/sightedit.min.js.map cdn-dist/
+        echo "/* SightEdit v${{ github.event.release.tag_name || github.event.inputs.version }} */" | cat - cdn-dist/sightedit.min.js > temp && mv temp cdn-dist/sightedit.min.js
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Deploy to S3
+      run: |
+        VERSION=${{ github.event.release.tag_name || format('v{0}', github.event.inputs.version) }}
+        VERSION=${VERSION#v}
+        
+        # Upload versioned files
+        aws s3 cp cdn-dist/sightedit.min.js s3://cdn.sightedit.com/v${VERSION}/sightedit.min.js \
+          --content-type "application/javascript" \
+          --cache-control "public, max-age=31536000, immutable"
+        
+        aws s3 cp cdn-dist/sightedit.min.js.map s3://cdn.sightedit.com/v${VERSION}/sightedit.min.js.map \
+          --content-type "application/json" \
+          --cache-control "public, max-age=31536000, immutable"
+        
+        # Update latest version
+        aws s3 cp cdn-dist/sightedit.min.js s3://cdn.sightedit.com/v1/sightedit.min.js \
+          --content-type "application/javascript" \
+          --cache-control "public, max-age=3600"
+        
+        aws s3 cp cdn-dist/sightedit.min.js.map s3://cdn.sightedit.com/v1/sightedit.min.js.map \
+          --content-type "application/json" \
+          --cache-control "public, max-age=3600"
+    
+    - name: Invalidate CloudFront cache
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+          --paths "/v1/*" "/v${{ github.event.release.tag_name || github.event.inputs.version }}/*"
+    
+    - name: Update version manifest
+      run: |
+        VERSION=${{ github.event.release.tag_name || format('v{0}', github.event.inputs.version) }}
+        VERSION=${VERSION#v}
+        
+        # Create version manifest
+        cat > cdn-dist/versions.json <<EOF
+        {
+          "latest": "${VERSION}",
+          "versions": {
+            "${VERSION}": {
+              "released": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "size": $(stat -c%s cdn-dist/sightedit.min.js),
+              "sha256": "$(sha256sum cdn-dist/sightedit.min.js | cut -d' ' -f1)"
+            }
+          }
+        }
+        EOF
+        
+        # Upload version manifest
+        aws s3 cp cdn-dist/versions.json s3://cdn.sightedit.com/versions.json \
+          --content-type "application/json" \
+          --cache-control "public, max-age=300"
+    
+    - name: Test CDN deployment
+      run: |
+        VERSION=${{ github.event.release.tag_name || format('v{0}', github.event.inputs.version) }}
+        VERSION=${VERSION#v}
+        
+        # Test versioned URL
+        curl -f https://cdn.sightedit.com/v${VERSION}/sightedit.min.js -o /dev/null
+        
+        # Test latest URL
+        curl -f https://cdn.sightedit.com/v1/sightedit.min.js -o /dev/null
+        
+        # Test version manifest
+        curl -f https://cdn.sightedit.com/versions.json | jq .
+    
+    - name: Notify deployment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = '${{ github.event.release.tag_name || format('v{0}', github.event.inputs.version) }}';
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: `✅ Successfully deployed ${version} to CDN!\n\nCDN URLs:\n- https://cdn.sightedit.com/v1/sightedit.min.js (latest)\n- https://cdn.sightedit.com/${version}/sightedit.min.js (versioned)`
+          });

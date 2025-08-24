@@ -1,0 +1,100 @@
+{
+  "name": "@sightedit/server-node",
+  "version": "1.0.0",
+  "description": "Node.js server handler for SightEdit with comprehensive database migration system",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "sightedit-migrate": "dist/migrations/cli/migrate.js",
+    "sightedit-config": "dist/migrations/cli/config-generator.js"
+  },
+  "files": [
+    "dist",
+    "src/migrations"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "jest",
+    "test:migrations": "jest --testPathPattern=migrations",
+    "test:postgresql": "npm run test:migrations -- --testNamePattern=postgresql",
+    "test:mysql": "npm run test:migrations -- --testNamePattern=mysql", 
+    "test:mongodb": "npm run test:migrations -- --testNamePattern=mongodb",
+    "test:sqlite": "npm run test:migrations -- --testNamePattern=sqlite",
+    "test:performance": "npm run test:migrations -- --testNamePattern=performance",
+    "migrate:up": "node dist/migrations/cli/migrate.js up",
+    "migrate:down": "node dist/migrations/cli/migrate.js down",
+    "migrate:status": "node dist/migrations/cli/migrate.js status",
+    "migrate:create": "node dist/migrations/cli/migrate.js create",
+    "migrate:backup": "node dist/migrations/cli/migrate.js backup",
+    "migrate:restore": "node dist/migrations/cli/migrate.js restore",
+    "start": "node dist/examples/production-server-example.js",
+    "start:dev": "NODE_ENV=development node dist/examples/production-server-example.js",
+    "start:production": "NODE_ENV=production node dist/examples/production-server-example.js",
+    "start:container": "NODE_ENV=container node dist/examples/production-server-example.js",
+    "docker:build": "docker build -f Dockerfile.production -t sightedit-server:latest .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env.production sightedit-server:latest",
+    "docker:compose:up": "docker-compose -f docker-compose.production.yml up -d",
+    "docker:compose:down": "docker-compose -f docker-compose.production.yml down",
+    "docker:compose:logs": "docker-compose -f docker-compose.production.yml logs -f",
+    "security:audit": "npm audit && npm audit fix",
+    "security:check": "node -e \"console.log('Running security checks...'); require('./dist/examples/production-server-example.js')\" --check"
+  },
+  "keywords": [
+    "sightedit",
+    "cms",
+    "visual-editor",
+    "express",
+    "node",
+    "database",
+    "migration",
+    "postgresql",
+    "mysql",
+    "mongodb",
+    "sqlite"
+  ],
+  "author": "SightEdit Contributors",
+  "license": "MIT",
+  "peerDependencies": {
+    "express": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/ws": "^8.18.1",
+    "express": "^4.18.2",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/sharp": "^0.31.1",
+    "@types/nodemailer": "^6.4.14",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/cookie-parser": "^1.4.6",
+    "bcryptjs": "^3.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "nodemailer": "^6.9.13",
+    "rate-limiter-flexible": "^3.0.8",
+    "sharp": "^0.34.3",
+    "commander": "^11.1.0",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6"
+  },
+  "optionalDependencies": {
+    "pg": "^8.11.0",
+    "@types/pg": "^8.10.0",
+    "mysql2": "^3.6.0",
+    "sqlite3": "^5.1.0",
+    "mongodb": "^6.0.0"
+  }
+}

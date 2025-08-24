@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit - Vanilla HTML Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 40px;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .feature {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .feature h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: #667eea;
+            border-radius: 50%;
+            margin-bottom: 20px;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+        
+        .edit-hint {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            margin-top: 60px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+                <div data-sight="nav.logo" style="font-size: 1.5rem; font-weight: bold;">SightEdit Demo</div>
+                <div style="display: flex; gap: 30px;">
+                    <a href="#features" data-sight="nav.link1" style="text-decoration: none; color: #333;">Features</a>
+                    <a href="#gallery" data-sight="nav.link2" style="text-decoration: none; color: #333;">Gallery</a>
+                    <a href="#about" data-sight="nav.link3" style="text-decoration: none; color: #333;">About</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="edit-hint">
+            <strong>Edit Mode:</strong> Press <kbd>Ctrl/Cmd + E</kbd> to toggle edit mode, then click any content to edit it!
+        </div>
+
+        <section class="hero">
+            <h1 data-sight="hero.title">Welcome to SightEdit</h1>
+            <p data-sight="hero.subtitle">Transform any website into a visual editor with just a few lines of code</p>
+            <button data-sight="hero.cta" style="background: white; color: #667eea; padding: 12px 30px; border: none; border-radius: 4px; font-size: 1.1rem; cursor: pointer;">
+                Get Started
+            </button>
+        </section>
+
+        <section id="features" class="features" data-sight="features" data-sight-mode="modal">
+            <div class="feature" data-sight-item="1">
+                <div class="feature-icon"></div>
+                <h3 data-sight="title">Easy Integration</h3>
+                <p data-sight="description">Add SightEdit to any website with a single script tag. No complex setup or configuration required.</p>
+            </div>
+            
+            <div class="feature" data-sight-item="2">
+                <div class="feature-icon"></div>
+                <h3 data-sight="title">Framework Agnostic</h3>
+                <p data-sight="description">Works seamlessly with React, Vue, Angular, or plain HTML. Use your favorite tools and frameworks.</p>
+            </div>
+            
+            <div class="feature" data-sight-item="3">
+                <div class="feature-icon"></div>
+                <h3 data-sight="title">Smart Detection</h3>
+                <p data-sight="description">Automatically detects content types and provides appropriate editors for text, images, and more.</p>
+            </div>
+        </section>
+
+        <section id="gallery" style="margin-bottom: 40px;">
+            <h2 data-sight="gallery.title" style="text-align: center; margin-bottom: 30px;">Image Gallery</h2>
+            <div class="gallery">
+                <div class="gallery-item">
+                    <img data-sight="gallery.image1" src="https://via.placeholder.com/400x300/667eea/ffffff?text=Image+1" alt="Gallery Image 1">
+                </div>
+                <div class="gallery-item">
+                    <img data-sight="gallery.image2" src="https://via.placeholder.com/400x300/764ba2/ffffff?text=Image+2" alt="Gallery Image 2">
+                </div>
+                <div class="gallery-item">
+                    <img data-sight="gallery.image3" src="https://via.placeholder.com/400x300/f093fb/ffffff?text=Image+3" alt="Gallery Image 3">
+                </div>
+            </div>
+        </section>
+
+        <section id="about" style="background: white; padding: 40px; border-radius: 8px; margin-bottom: 40px;">
+            <h2 data-sight="about.title" style="margin-bottom: 20px;">About SightEdit</h2>
+            <div data-sight="about.content" data-sight-type="richtext">
+                <p>SightEdit is a revolutionary visual editing system that makes content management simple and intuitive. With our powerful yet lightweight library, you can transform any static website into a dynamic, editable experience.</p>
+                <p>Whether you're building a blog, e-commerce site, or corporate website, SightEdit adapts to your needs without imposing any specific structure or framework requirements.</p>
+                <ul>
+                    <li>Open source and free to use</li>
+                    <li>Extensive plugin ecosystem</li>
+                    <li>Enterprise-ready with advanced features</li>
+                    <li>Active community and support</li>
+                </ul>
+            </div>
+        </section>
+
+        <section style="background: white; padding: 40px; border-radius: 8px; margin-bottom: 40px;">
+            <h2 style="margin-bottom: 30px;">More Examples</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+                <div style="padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px;">Data Types</h3>
+                    <p>Price: <span data-sight="examples.price" data-sight-type="number" data-sight-min="0" data-sight-max="9999">$299.99</span></p>
+                    <p>Discount: <span data-sight="examples.discount" data-sight-type="number" data-sight-min="0" data-sight-max="100">15%</span></p>
+                    <p>Stock: <span data-sight="examples.stock" data-sight-type="number" data-sight-min="0">125</span> units</p>
+                    <p>Release Date: <span data-sight="examples.date" data-sight-type="date">January 15, 2024</span></p>
+                </div>
+                
+                <div style="padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px;">Selections</h3>
+                    <p>Status: <span data-sight="examples.status" data-sight-type="select" data-sight-options='["Active", "Pending", "Archived"]'>Active</span></p>
+                    <p>Category: <span data-sight="examples.category" data-sight-type="select" data-sight-options='[{"value":"tech","label":"Technology"},{"value":"health","label":"Healthcare"},{"value":"edu","label":"Education"}]'>Technology</span></p>
+                    <p>Color Theme: <span data-sight="examples.theme" data-sight-type="color">#667eea</span></p>
+                </div>
+                
+                <div style="padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px;">Configuration</h3>
+                    <div data-sight="examples.config" data-sight-type="json" style="font-size: 0.9em;">
+{
+  "apiVersion": "2.0",
+  "features": {
+    "darkMode": true,
+    "analytics": false,
+    "notifications": true
+  },
+  "limits": {
+    "maxUsers": 100,
+    "storage": "10GB"
+  }
+}
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p data-sight="footer.copyright">&copy; 2024 SightEdit. All rights reserved.</p>
+        <p data-sight="footer.tagline" style="color: #666; margin-top: 10px;">Made with ❤️ by developers, for developers</p>
+    </footer>
+
+    <!-- SightEdit Integration -->
+    <script src="../../packages/core/dist/sightedit.min.js"></script>
+    <script>
+        // Mock API endpoint for demo
+        const mockAPI = {
+            save: async (data) => {
+                console.log('Saving:', data);
+                // Simulate network delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return { success: true, data: data.value };
+            }
+        };
+
+        // Initialize SightEdit
+        SightEdit.init({
+            endpoint: '/api/sightedit',
+            debug: true,
+            onSave: async (data) => {
+                // In a real app, this would send to your backend
+                const response = await mockAPI.save(data);
+                console.log('Saved successfully:', response);
+            },
+            onError: (error) => {
+                console.error('SightEdit error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

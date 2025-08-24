@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* SightEdit edit mode styles */
+[data-sight-edit-mode="edit"] [data-sight] {
+  outline: 2px dashed #3b82f6;
+  outline-offset: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-sight-edit-mode="edit"] [data-sight]:hover {
+  outline-color: #2563eb;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+[data-sight-edit-mode="edit"] [data-sight]:focus {
+  outline-width: 3px;
+  outline-style: solid;
+}
+
+/* Loading states */
+.sight-edit-loading {
+  position: relative;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.sight-edit-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #3b82f6;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sight-edit-spin 0.6s linear infinite;
+}
+
+@keyframes sight-edit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

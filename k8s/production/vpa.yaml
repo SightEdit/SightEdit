@@ -1,0 +1,96 @@
+# ================================================================================
+# Vertical Pod Autoscaler (VPA) Configuration for SightEdit
+# Automatically adjusts CPU and memory requests/limits based on usage patterns
+# ================================================================================
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sightedit-backend-vpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sightedit-backend
+  
+  updatePolicy:
+    updateMode: "Auto"  # Automatically apply recommendations
+    
+  resourcePolicy:
+    containerPolicies:
+    - containerName: backend
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sightedit-cdn-vpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: cdn
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sightedit-cdn
+  
+  updatePolicy:
+    updateMode: "Auto"
+    
+  resourcePolicy:
+    containerPolicies:
+    - containerName: nginx
+      minAllowed:
+        cpu: 50m
+        memory: 64Mi
+      maxAllowed:
+        cpu: 500m
+        memory: 512Mi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sightedit-database-vpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: postgres-primary
+  
+  updatePolicy:
+    updateMode: "Initial"  # Only set initial values, don't auto-update database
+    
+  resourcePolicy:
+    containerPolicies:
+    - containerName: postgres
+      minAllowed:
+        cpu: 500m
+        memory: 1Gi
+      maxAllowed:
+        cpu: 4000m
+        memory: 8Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits

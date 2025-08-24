@@ -1,0 +1,70 @@
+# Grafana Dashboard Provisioning Configuration
+
+apiVersion: 1
+
+providers:
+  # SightEdit Application Dashboards
+  - name: sightedit-application
+    type: file
+    orgId: 1
+    folder: 'SightEdit Application'
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/application
+
+  # Infrastructure Dashboards
+  - name: infrastructure
+    type: file
+    orgId: 1
+    folder: 'Infrastructure'
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/infrastructure
+
+  # Business Metrics Dashboards
+  - name: business-metrics
+    type: file
+    orgId: 1
+    folder: 'Business Metrics'
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/business
+
+  # Security Dashboards
+  - name: security
+    type: file
+    orgId: 1
+    folder: 'Security'
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/security
+
+  # Logs and Tracing Dashboards
+  - name: observability
+    type: file
+    orgId: 1
+    folder: 'Observability'
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/observability
+
+  # Executive Dashboards
+  - name: executive
+    type: file
+    orgId: 1
+    folder: 'Executive Summary'
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/executive

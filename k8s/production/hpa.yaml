@@ -1,0 +1,190 @@
+# ================================================================================
+# Horizontal Pod Autoscaler (HPA) Configuration for SightEdit
+# Provides automatic scaling based on CPU, Memory, and custom metrics
+# ================================================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sightedit-backend-hpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sightedit-backend
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  
+  # Custom metric: Request rate
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+  
+  # Custom metric: Response time
+  - type: Pods
+    pods:
+      metric:
+        name: http_request_duration_p95
+      target:
+        type: AverageValue
+        averageValue: "500m"  # 500ms
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 minutes
+      policies:
+      - type: Percent
+        value: 10  # Scale down by max 10% of current replicas
+        periodSeconds: 60
+      - type: Pods
+        value: 2   # Or by max 2 pods
+        periodSeconds: 60
+      selectPolicy: Min  # Use the policy that results in fewer changes
+    
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 1 minute
+      policies:
+      - type: Percent
+        value: 50  # Scale up by max 50% of current replicas
+        periodSeconds: 60
+      - type: Pods
+        value: 5   # Or by max 5 pods
+        periodSeconds: 60
+      selectPolicy: Max  # Use the policy that results in more changes
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sightedit-cdn-hpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: cdn
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sightedit-cdn
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60  # Lower threshold for CDN
+  
+  # Memory-based scaling  
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  
+  # Custom metric: Network throughput
+  - type: Pods
+    pods:
+      metric:
+        name: nginx_http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "500"
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 15  # CDN can scale down faster
+        periodSeconds: 60
+      selectPolicy: Min
+    
+    scaleUp:
+      stabilizationWindowSeconds: 30  # CDN should scale up quickly
+      policies:
+      - type: Percent
+        value: 100  # Double the instances quickly if needed
+        periodSeconds: 60
+      - type: Pods
+        value: 3
+        periodSeconds: 30
+      selectPolicy: Max
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sightedit-website-hpa
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: website
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sightedit-website
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 60
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600  # 10 minutes - website traffic is more predictable
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+    
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60

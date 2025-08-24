@@ -1,0 +1,97 @@
+# Multi-stage Docker build for production SightEdit server
+
+# Stage 1: Build dependencies and compile TypeScript
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy source code
+COPY src/ ./src/
+
+# Build TypeScript
+RUN npm run build
+
+# Stage 2: Production runtime
+FROM node:18-alpine AS runtime
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    ca-certificates \
+    tzdata
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S sightedit && \
+    adduser -S -u 1001 -G sightedit sightedit
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application from builder stage
+COPY --from=builder --chown=sightedit:sightedit /app/dist ./dist
+COPY --from=builder --chown=sightedit:sightedit /app/node_modules ./node_modules
+COPY --from=builder --chown=sightedit:sightedit /app/package.json ./
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /var/lib/sightedit/uploads && \
+    mkdir -p /var/log/sightedit && \
+    mkdir -p /tmp/sightedit && \
+    chown -R sightedit:sightedit /var/lib/sightedit && \
+    chown -R sightedit:sightedit /var/log/sightedit && \
+    chown -R sightedit:sightedit /tmp/sightedit
+
+# Set timezone
+ENV TZ=UTC
+
+# Application configuration
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+ENV UV_THREADPOOL_SIZE=16
+
+# Security headers
+ENV HELMET_ENABLED=true
+ENV SECURE_HEADERS=true
+
+# Health check configuration
+ENV HEALTH_CHECK_TIMEOUT=5000
+ENV HEALTH_CHECK_INTERVAL=30000
+
+# Switch to non-root user
+USER sightedit
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f https://localhost:3000/health || exit 1
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application
+CMD ["node", "dist/examples/production-server-example.js"]

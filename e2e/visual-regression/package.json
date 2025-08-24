@@ -1,0 +1,25 @@
+{
+  "name": "sightedit-visual-regression",
+  "version": "1.0.0",
+  "description": "Visual regression tests for SightEdit",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:update": "playwright test --update-snapshots",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:chrome": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+    "test:report": "playwright show-report",
+    "serve:examples": "cd ../.. && npm run serve:examples",
+    "pretest": "npm run build:examples",
+    "build:examples": "cd ../.. && npm run build:examples"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "axe-playwright": "^1.2.3"
+  }
+}

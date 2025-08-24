@@ -1,0 +1,61 @@
+{
+  "name": "@sightedit/plugin-markdown",
+  "version": "1.0.0",
+  "description": "Markdown editor plugin for SightEdit",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "jest",
+    "test:unit": "jest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@sightedit/core": "^1.0.0"
+  },
+  "dependencies": {
+    "marked": "^11.0.0",
+    "codemirror": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.2.3",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.22.0",
+    "@codemirror/state": "^6.3.3",
+    "@codemirror/commands": "^6.3.2",
+    "markdown-it": "^14.0.0",
+    "dompurify": "^3.0.6"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.8.0",
+    "typescript": "^5.3.0",
+    "@types/marked": "^6.0.0",
+    "@types/dompurify": "^3.0.5",
+    "@types/markdown-it": "^13.0.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sightedit/sightedit.git",
+    "directory": "packages/plugin-markdown"
+  },
+  "keywords": [
+    "sightedit",
+    "plugin",
+    "markdown",
+    "editor",
+    "wysiwyg"
+  ],
+  "license": "MIT"
+}

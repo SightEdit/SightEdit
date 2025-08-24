@@ -1,0 +1,383 @@
+/* Markdown Editor Modal */
+.sightedit-markdown-modal .sightedit-modal-content {
+  width: 90vw;
+  max-width: 1200px;
+  height: 80vh;
+}
+
+.sightedit-markdown-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 60px);
+}
+
+/* Toolbar */
+.sightedit-markdown-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f5f5f5;
+  gap: 4px;
+}
+
+.sightedit-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.sightedit-toolbar-btn:hover {
+  background: #e0e0e0;
+}
+
+.sightedit-toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #d0d0d0;
+  margin: 0 8px;
+}
+
+/* Editor */
+.sightedit-markdown-editor {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.sightedit-markdown-editor.with-preview {
+  width: 50%;
+}
+
+.sightedit-markdown-editor .cm-editor {
+  flex: 1;
+  height: 100%;
+}
+
+.sightedit-markdown-editor .cm-scroller {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Preview */
+.sightedit-markdown-preview {
+  flex: 1;
+  width: 50%;
+  padding: 16px;
+  overflow-y: auto;
+  background: #fafafa;
+  border-left: 1px solid #e0e0e0;
+}
+
+.sightedit-markdown-preview h1,
+.sightedit-markdown-preview h2,
+.sightedit-markdown-preview h3,
+.sightedit-markdown-preview h4,
+.sightedit-markdown-preview h5,
+.sightedit-markdown-preview h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.sightedit-markdown-preview h1 { font-size: 2em; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3em; }
+.sightedit-markdown-preview h2 { font-size: 1.5em; }
+.sightedit-markdown-preview h3 { font-size: 1.25em; }
+.sightedit-markdown-preview h4 { font-size: 1em; }
+.sightedit-markdown-preview h5 { font-size: 0.875em; }
+.sightedit-markdown-preview h6 { font-size: 0.85em; color: #666; }
+
+.sightedit-markdown-preview p {
+  margin-bottom: 16px;
+}
+
+.sightedit-markdown-preview pre {
+  background: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.sightedit-markdown-preview code {
+  background: #f6f8fa;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 85%;
+}
+
+.sightedit-markdown-preview pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.sightedit-markdown-preview blockquote {
+  padding: 0 1em;
+  color: #666;
+  border-left: 0.25em solid #dfe2e5;
+  margin: 0 0 16px 0;
+}
+
+.sightedit-markdown-preview ul,
+.sightedit-markdown-preview ol {
+  padding-left: 2em;
+  margin-bottom: 16px;
+}
+
+.sightedit-markdown-preview li {
+  margin-bottom: 4px;
+}
+
+.sightedit-markdown-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.sightedit-markdown-preview th,
+.sightedit-markdown-preview td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.sightedit-markdown-preview th {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+.sightedit-markdown-preview img {
+  max-width: 100%;
+  height: auto;
+}
+
+.sightedit-markdown-preview hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: #e1e4e8;
+  border: 0;
+}
+
+/* Task Lists */
+.sightedit-markdown-preview .task-list-item {
+  list-style: none;
+  margin-left: -1.5em;
+}
+
+.sightedit-markdown-preview .task-list-item input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+
+/* Syntax Highlighting */
+.sightedit-markdown-preview .token.keyword { color: #d73a49; }
+.sightedit-markdown-preview .token.string { color: #032f62; }
+.sightedit-markdown-preview .token.comment { color: #6a737d; font-style: italic; }
+.sightedit-markdown-preview .token.number { color: #005cc5; }
+.sightedit-markdown-preview .token.function { color: #6f42c1; }
+.sightedit-markdown-preview .token.operator { color: #d73a49; }
+.sightedit-markdown-preview .token.class-name { color: #22863a; }
+
+/* Help Modal */
+.sightedit-help-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  max-width: 500px;
+  z-index: 10002;
+}
+
+.sightedit-help-content h4 {
+  margin: 0 0 16px 0;
+}
+
+.sightedit-help-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.sightedit-help-content li {
+  margin-bottom: 8px;
+}
+
+.sightedit-help-content code {
+  background: #f6f8fa;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+/* Preview Component */
+.sightedit-markdown-preview-component {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sightedit-markdown-preview-component .preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sightedit-markdown-preview-component .preview-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sightedit-markdown-preview-component .preview-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.sightedit-markdown-preview-component .preview-action {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.sightedit-markdown-preview-component .preview-action:hover {
+  background: #e0e0e0;
+}
+
+.sightedit-markdown-preview-component .preview-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* Fullscreen Mode */
+.sightedit-markdown-preview-component.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  border-radius: 0;
+}
+
+body.sightedit-fullscreen-active {
+  overflow: hidden;
+}
+
+/* Export Menu */
+.export-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  z-index: 10001;
+}
+
+.export-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.export-menu button:hover {
+  background: #f0f0f0;
+}
+
+/* Notification */
+.sightedit-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #333;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s;
+  z-index: 10003;
+}
+
+.sightedit-notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Dark Theme */
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-toolbar {
+  background: #2d2d2d;
+  border-bottom-color: #444;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-toolbar-btn {
+  color: #e0e0e0;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-toolbar-btn:hover {
+  background: #3d3d3d;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border-left-color: #444;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview pre {
+  background: #2d2d2d;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview code {
+  background: #2d2d2d;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview blockquote {
+  border-left-color: #444;
+  color: #aaa;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview th {
+  background: #2d2d2d;
+}
+
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview th,
+.sightedit-markdown-modal[data-theme="dark"] .sightedit-markdown-preview td {
+  border-color: #444;
+}

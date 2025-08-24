@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply text-gray-900 bg-white;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-900;
+  }
+  
+  .btn-outline {
+    @apply border border-primary-600 text-primary-600 hover:bg-primary-50;
+  }
+  
+  .code-block {
+    @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto;
+  }
+  
+  .nav-link {
+    @apply text-gray-600 hover:text-primary-600 transition-colors;
+  }
+  
+  .nav-link.active {
+    @apply text-primary-600;
+  }
+}
+
+/* Prism theme */
+pre[class*="language-"] {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm;
+}
+
+code[class*="language-"] {
+  @apply text-gray-100;
+}
+
+.token.comment {
+  @apply text-gray-400;
+}
+
+.token.keyword {
+  @apply text-purple-300;
+}
+
+.token.string {
+  @apply text-green-300;
+}
+
+.token.number {
+  @apply text-blue-300;
+}
+
+.token.function {
+  @apply text-yellow-300;
+}

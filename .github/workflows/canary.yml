@@ -1,0 +1,84 @@
+name: Canary Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - '!packages/**/README.md'
+      - '!**/*.test.ts'
+      - '!**/*.spec.ts'
+  workflow_dispatch:
+
+jobs:
+  canary:
+    name: Canary Release
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+    
+    - name: Check if changes affect packages
+      id: changes
+      uses: dorny/paths-filter@v2
+      with:
+        filters: |
+          packages:
+            - 'packages/**'
+            - '!packages/**/README.md'
+            - '!**/*.test.ts'
+            - '!**/*.spec.ts'
+    
+    - name: Install dependencies
+      if: steps.changes.outputs.packages == 'true'
+      run: npm ci --legacy-peer-deps
+    
+    - name: Build packages
+      if: steps.changes.outputs.packages == 'true'
+      run: npm run build
+    
+    - name: Run canary release
+      if: steps.changes.outputs.packages == 'true'
+      run: |
+        npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
+        node scripts/dev-release.js canary
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        CI: true
+    
+    - name: Notify Discord
+      if: steps.changes.outputs.packages == 'true' && success()
+      uses: sarisia/actions-status-discord@v1
+      with:
+        webhook: ${{ secrets.DISCORD_WEBHOOK }}
+        title: "🚀 Canary Release Published"
+        description: |
+          A new canary version of SightEdit has been published to NPM!
+          
+          Install with: `npm install @sightedit/core@canary`
+        color: 0x00ff00
+    
+    - name: Comment on PR
+      if: github.event_name == 'pull_request' && steps.changes.outputs.packages == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          const version = execSync('npm view @sightedit/core@canary version', { encoding: 'utf8' }).trim();
+          
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: `🚀 Canary version \`${version}\` has been published!\n\nTry it out:\n\`\`\`bash\nnpm install @sightedit/core@canary\n\`\`\``
+          });

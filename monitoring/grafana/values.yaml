@@ -1,0 +1,423 @@
+# Grafana Helm Chart Values for SightEdit Monitoring
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Image configuration
+image:
+  repository: grafana/grafana
+  tag: "10.1.0"
+  pullPolicy: IfNotPresent
+
+# Admin credentials
+adminUser: admin
+adminPassword: admin  # Should be overridden with secret
+
+# Resource limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Persistence
+persistence:
+  enabled: true
+  type: pvc
+  size: 10Gi
+  storageClassName: gp3
+  accessModes:
+    - ReadWriteOnce
+  finalizers:
+    - kubernetes.io/pvc-protection
+
+# Service configuration
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+# Security context
+securityContext:
+  runAsUser: 472
+  runAsGroup: 472
+  fsGroup: 472
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Grafana configuration
+grafana.ini:
+  server:
+    domain: monitoring.sightedit.com
+    root_url: https://monitoring.sightedit.com/grafana
+    serve_from_sub_path: true
+  
+  security:
+    admin_user: admin
+    admin_password: $__file{/etc/secrets/admin-password}
+    cookie_secure: true
+    cookie_samesite: strict
+    disable_gravatar: true
+  
+  users:
+    allow_sign_up: false
+    auto_assign_org: true
+    auto_assign_org_role: Viewer
+  
+  auth:
+    disable_login_form: false
+  
+  auth.anonymous:
+    enabled: false
+  
+  smtp:
+    enabled: true
+    host: localhost:587
+    user: grafana@sightedit.com
+    password: $__file{/etc/secrets/smtp-password}
+    from_address: grafana@sightedit.com
+    from_name: SightEdit Grafana
+  
+  alerting:
+    enabled: true
+    execute_alerts: true
+  
+  metrics:
+    enabled: true
+    basic_auth_username: metrics
+    basic_auth_password: $__file{/etc/secrets/metrics-password}
+
+# Data sources configuration
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      # Prometheus
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server:9090
+        access: proxy
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: 15s
+          queryTimeout: 60s
+          httpMethod: POST
+      
+      # Loki (if logs are collected)
+      - name: Loki
+        type: loki
+        url: http://loki:3100
+        access: proxy
+        editable: true
+        jsonData:
+          maxLines: 1000
+      
+      # Jaeger
+      - name: Jaeger
+        type: jaeger
+        url: http://jaeger-query:16686
+        access: proxy
+        editable: true
+        jsonData:
+          tracesToMetrics:
+            datasourceUid: prometheus
+            tags: [{ key: 'service.name', value: 'service' }]
+            queries:
+              - name: 'Sample query'
+                query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+      
+      - name: 'sightedit'
+        orgId: 1
+        folder: 'SightEdit'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/sightedit
+
+# Pre-configured dashboards
+dashboards:
+  default:
+    # Kubernetes cluster overview
+    kubernetes-cluster:
+      gnetId: 7249
+      revision: 1
+      datasource: Prometheus
+    
+    # Node Exporter dashboard
+    node-exporter:
+      gnetId: 1860
+      revision: 31
+      datasource: Prometheus
+    
+    # Kubernetes pod monitoring
+    kubernetes-pods:
+      gnetId: 6417
+      revision: 1
+      datasource: Prometheus
+  
+  sightedit:
+    # SightEdit Application Dashboard
+    application-overview:
+      json: |
+        {
+          "dashboard": {
+            "id": null,
+            "title": "SightEdit Application Overview",
+            "tags": ["sightedit", "application"],
+            "timezone": "UTC",
+            "refresh": "30s",
+            "time": {
+              "from": "now-1h",
+              "to": "now"
+            },
+            "panels": [
+              {
+                "id": 1,
+                "title": "Request Rate",
+                "type": "graph",
+                "targets": [
+                  {
+                    "expr": "sum(rate(http_requests_total{service=\"sightedit-backend\"}[5m]))",
+                    "legendFormat": "Requests/sec",
+                    "refId": "A"
+                  }
+                ],
+                "yAxes": [
+                  {
+                    "label": "Requests/sec",
+                    "min": 0
+                  }
+                ],
+                "gridPos": {
+                  "h": 8,
+                  "w": 12,
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "id": 2,
+                "title": "Response Time",
+                "type": "graph",
+                "targets": [
+                  {
+                    "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"sightedit-backend\"}[5m])) by (le))",
+                    "legendFormat": "95th percentile",
+                    "refId": "A"
+                  },
+                  {
+                    "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"sightedit-backend\"}[5m])) by (le))",
+                    "legendFormat": "50th percentile",
+                    "refId": "B"
+                  }
+                ],
+                "yAxes": [
+                  {
+                    "label": "Seconds",
+                    "min": 0
+                  }
+                ],
+                "gridPos": {
+                  "h": 8,
+                  "w": 12,
+                  "x": 12,
+                  "y": 0
+                }
+              },
+              {
+                "id": 3,
+                "title": "Error Rate",
+                "type": "graph",
+                "targets": [
+                  {
+                    "expr": "sum(rate(http_requests_total{service=\"sightedit-backend\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"sightedit-backend\"}[5m])) * 100",
+                    "legendFormat": "Error Rate %",
+                    "refId": "A"
+                  }
+                ],
+                "yAxes": [
+                  {
+                    "label": "Percent",
+                    "min": 0,
+                    "max": 100
+                  }
+                ],
+                "gridPos": {
+                  "h": 8,
+                  "w": 12,
+                  "x": 0,
+                  "y": 8
+                }
+              },
+              {
+                "id": 4,
+                "title": "Active Connections",
+                "type": "stat",
+                "targets": [
+                  {
+                    "expr": "sum(active_connections{service=\"sightedit-backend\"})",
+                    "refId": "A"
+                  }
+                ],
+                "gridPos": {
+                  "h": 4,
+                  "w": 6,
+                  "x": 12,
+                  "y": 8
+                }
+              },
+              {
+                "id": 5,
+                "title": "Memory Usage",
+                "type": "graph",
+                "targets": [
+                  {
+                    "expr": "process_resident_memory_bytes{service=\"sightedit-backend\"} / 1024 / 1024",
+                    "legendFormat": "Memory (MB)",
+                    "refId": "A"
+                  }
+                ],
+                "gridPos": {
+                  "h": 8,
+                  "w": 12,
+                  "x": 0,
+                  "y": 16
+                }
+              },
+              {
+                "id": 6,
+                "title": "CPU Usage",
+                "type": "graph",
+                "targets": [
+                  {
+                    "expr": "rate(process_cpu_seconds_total{service=\"sightedit-backend\"}[5m]) * 100",
+                    "legendFormat": "CPU %",
+                    "refId": "A"
+                  }
+                ],
+                "gridPos": {
+                  "h": 8,
+                  "w": 12,
+                  "x": 12,
+                  "y": 16
+                }
+              }
+            ]
+          }
+        }
+
+# Notification channels
+notifiers:
+  notifiers.yaml:
+    notifiers:
+      - name: slack-alerts
+        type: slack
+        uid: slack
+        settings:
+          url: ${SLACK_WEBHOOK_URL}
+          channel: "#alerts"
+          username: grafana
+          title: "Grafana Alert"
+          text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+    
+    delete_notifiers:
+      - name: email-alerts
+        uid: email
+
+# Environment variables
+env:
+  GF_EXPLORE_ENABLED: true
+  GF_PANELS_DISABLE_SANITIZE_HTML: false
+  GF_LOG_FILTERS: rendering:debug
+  GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+
+# Extra environment variables from secrets
+envFromSecret: grafana-secrets
+
+# Init containers
+initContainers:
+  - name: download-dashboards
+    image: curlimages/curl:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        mkdir -p /var/lib/grafana/dashboards/default
+        curl -sk https://grafana.com/api/dashboards/7249/revisions/1/download | sed 's|${DS_PROMETHEUS}|Prometheus|g' > /var/lib/grafana/dashboards/default/kubernetes-cluster.json
+        curl -sk https://grafana.com/api/dashboards/1860/revisions/31/download | sed 's|${DS_PROMETHEUS}|Prometheus|g' > /var/lib/grafana/dashboards/default/node-exporter.json
+    volumeMounts:
+      - name: storage
+        mountPath: /var/lib/grafana
+
+# Sidecar for automatic dashboard discovery
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    folder: /tmp/dashboards
+    folderAnnotation: grafana_folder
+    provider:
+      foldersFromFilesStructure: true
+  
+  datasources:
+    enabled: true
+    label: grafana_datasource
+    labelValue: "1"
+
+# Alerting configuration
+alerting:
+  rules.yaml:
+    apiVersion: 1
+    groups:
+      - name: sightedit-alerts
+        orgId: 1
+        folder: SightEdit
+        interval: 1m
+        rules:
+          - uid: sightedit-high-response-time
+            title: High Response Time
+            condition: A
+            data:
+              - refId: A
+                queryType: ''
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                model:
+                  expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="sightedit-backend"}[5m])) by (le)) > 1
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Alerting
+            for: 2m
+            annotations:
+              description: 95th percentile response time is above 1 second
+              summary: High response time detected
+            labels:
+              severity: warning

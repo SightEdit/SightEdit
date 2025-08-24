@@ -1,0 +1,73 @@
+{
+  "name": "sightedit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Universal Visual Editing System",
+  "scripts": {
+    "bootstrap": "lerna bootstrap",
+    "build": "lerna run build",
+    "test": "lerna run test",
+    "test:unit": "lerna run test:unit",
+    "test:e2e": "cd e2e && npm test",
+    "test:e2e:headed": "cd e2e && npm run test:headed",
+    "test:e2e:ui": "cd e2e && npm run test:ui",
+    "lint": "lerna run lint",
+    "lint:fix": "lerna run lint:fix",
+    "format": "prettier --write \"**/*.{js,ts,tsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,tsx,json,md,yml,yaml}\"",
+    "typecheck": "lerna run typecheck",
+    "dev": "lerna run dev --parallel",
+    "clean": "lerna clean",
+    "publish": "lerna publish",
+    "release": "node scripts/release.js",
+    "release:canary": "node scripts/dev-release.js canary",
+    "release:alpha": "node scripts/dev-release.js alpha",
+    "release:beta": "node scripts/dev-release.js beta",
+    "version:check": "node scripts/version-check.js",
+    "version:sync": "lerna version --no-push --no-git-tag-version",
+    "prepare": "husky install",
+    "pre-commit": "lint-staged",
+    "docs": "lerna run docs --parallel",
+    "docs:core": "cd packages/core && npm run docs:all",
+    "docs:react": "cd packages/react && npm run docs",
+    "docs:vue": "cd packages/vue && npm run docs",
+    "docs:all": "npm run docs:core && npm run docs:react && npm run docs:vue",
+    "docs:serve": "npx serve docs"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "website"
+  ],
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.55.0",
+    "husky": "^8.0.3",
+    "lerna": "^8.0.0",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sightedit/sightedit.git"
+  },
+  "license": "MIT",
+  "author": "SightEdit Contributors",
+  "lint-staged": {
+    "*.{js,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.{ts,tsx}": [
+      "bash -c 'npm run typecheck'"
+    ]
+  }
+}

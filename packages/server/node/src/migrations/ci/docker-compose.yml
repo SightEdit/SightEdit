@@ -1,0 +1,300 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Migration Service
+  migrate-postgresql:
+    build:
+      context: ../../../..
+      dockerfile: packages/server/node/src/migrations/ci/docker-migrate.dockerfile
+      target: migration-runner
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_URL: postgresql://sightedit:password@postgres:5432/sightedit
+      MIGRATION_DIR: /app/packages/server/node/src/migrations/migrations
+      BACKUP_ENABLED: true
+      VALIDATE_AFTER_MIGRATION: true
+      VERBOSE: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - migration-backups:/app/backups
+      - migration-logs:/app/logs
+    networks:
+      - sightedit-network
+    command: ["status"]
+
+  # MySQL Migration Service
+  migrate-mysql:
+    build:
+      context: ../../../..
+      dockerfile: packages/server/node/src/migrations/ci/docker-migrate.dockerfile
+      target: migration-runner
+    environment:
+      DATABASE_TYPE: mysql
+      DATABASE_URL: mysql://sightedit:password@mysql:3306/sightedit
+      MIGRATION_DIR: /app/packages/server/node/src/migrations/migrations
+      BACKUP_ENABLED: true
+      VALIDATE_AFTER_MIGRATION: true
+      VERBOSE: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - migration-backups:/app/backups
+      - migration-logs:/app/logs
+    networks:
+      - sightedit-network
+    command: ["status"]
+
+  # MongoDB Migration Service
+  migrate-mongodb:
+    build:
+      context: ../../../..
+      dockerfile: packages/server/node/src/migrations/ci/docker-migrate.dockerfile
+      target: migration-runner
+    environment:
+      DATABASE_TYPE: mongodb
+      DATABASE_URL: mongodb://mongodb:27017/sightedit
+      MIGRATION_DIR: /app/packages/server/node/src/migrations/migrations
+      BACKUP_ENABLED: true
+      VALIDATE_AFTER_MIGRATION: true
+      VERBOSE: true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - migration-backups:/app/backups
+      - migration-logs:/app/logs
+    networks:
+      - sightedit-network
+    command: ["status"]
+
+  # SQLite Migration Service (for testing)
+  migrate-sqlite:
+    build:
+      context: ../../../..
+      dockerfile: packages/server/node/src/migrations/ci/docker-migrate.dockerfile
+      target: migration-runner
+    environment:
+      DATABASE_TYPE: sqlite
+      DATABASE_URL: /app/database/sightedit.sqlite
+      MIGRATION_DIR: /app/packages/server/node/src/migrations/migrations
+      BACKUP_ENABLED: true
+      VALIDATE_AFTER_MIGRATION: true
+      VERBOSE: true
+    volumes:
+      - sqlite-data:/app/database
+      - migration-backups:/app/backups
+      - migration-logs:/app/logs
+    networks:
+      - sightedit-network
+    command: ["status"]
+
+  # Migration Test Runner
+  migration-tests:
+    build:
+      context: ../../../..
+      dockerfile: packages/server/node/src/migrations/ci/docker-migrate.dockerfile
+      target: testing
+    environment:
+      NODE_ENV: test
+      TEST_TIMEOUT: 300000
+    depends_on:
+      - postgres
+      - mysql
+      - mongodb
+    volumes:
+      - migration-test-results:/app/test-results
+      - migration-logs:/app/logs
+    networks:
+      - sightedit-network
+    command: ["test"]
+
+  # Database Services
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sightedit
+      POSTGRES_USER: sightedit
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - sightedit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sightedit -d sightedit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sightedit
+      MYSQL_USER: sightedit
+      MYSQL_PASSWORD: password
+      MYSQL_INITDB_SKIP_TZINFO: 1
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-scripts/mysql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - sightedit-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "sightedit", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  mongodb:
+    image: mongo:6.0
+    environment:
+      MONGO_INITDB_DATABASE: sightedit
+    volumes:
+      - mongodb-data:/data/db
+      - ./init-scripts/mongodb:/docker-entrypoint-initdb.d
+    ports:
+      - "27017:27017"
+    networks:
+      - sightedit-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: 3
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - sightedit-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+  # Monitoring and Logging
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3000:3000"
+    networks:
+      - sightedit-network
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    networks:
+      - sightedit-network
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Log aggregation
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    networks:
+      - sightedit-network
+    volumes:
+      - loki-data:/loki
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+    networks:
+      - sightedit-network
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+
+# Named volumes for persistent data
+volumes:
+  postgres-data:
+    driver: local
+  mysql-data:
+    driver: local
+  mongodb-data:
+    driver: local
+  sqlite-data:
+    driver: local
+  redis-data:
+    driver: local
+  migration-backups:
+    driver: local
+  migration-logs:
+    driver: local
+  migration-test-results:
+    driver: local
+  grafana-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  loki-data:
+    driver: local
+
+# Network for service communication
+networks:
+  sightedit-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,284 @@
+# ================================================================================
+# Container Registry Management Configuration
+# Multi-registry setup with security scanning and automated policies
+# ================================================================================
+
+# Registry Configuration
+registries:
+  production:
+    primary:
+      provider: "github"
+      registry: "ghcr.io"
+      namespace: "sightedit"
+      authentication:
+        username: "${GITHUB_ACTOR}"
+        token: "${GITHUB_TOKEN}"
+      
+    backup:
+      provider: "aws"
+      registry: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      namespace: "sightedit"
+      authentication:
+        aws_access_key_id: "${AWS_ACCESS_KEY_ID}"
+        aws_secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+        aws_region: "${AWS_REGION}"
+    
+    mirror:
+      provider: "azure"
+      registry: "${AZURE_REGISTRY_NAME}.azurecr.io"
+      namespace: "sightedit"
+      authentication:
+        username: "${AZURE_CLIENT_ID}"
+        password: "${AZURE_CLIENT_SECRET}"
+
+  staging:
+    primary:
+      provider: "github"
+      registry: "ghcr.io"
+      namespace: "sightedit/staging"
+      authentication:
+        username: "${GITHUB_ACTOR}"
+        token: "${GITHUB_TOKEN}"
+
+  development:
+    primary:
+      provider: "docker-hub"
+      registry: "docker.io"
+      namespace: "sightedit-dev"
+      authentication:
+        username: "${DOCKER_HUB_USERNAME}"
+        token: "${DOCKER_HUB_TOKEN}"
+
+# Image Naming Convention
+image_naming:
+  pattern: "${REGISTRY}/${NAMESPACE}/${SERVICE}:${VERSION}"
+  services:
+    - name: "core"
+      dockerfile: "Dockerfile.production"
+      target: "backend-server"
+    - name: "cdn" 
+      dockerfile: "Dockerfile.production"
+      target: "cdn-server"
+    - name: "website"
+      dockerfile: "Dockerfile.production"
+      target: "website"
+    - name: "backup-manager"
+      dockerfile: "docker/backup/Dockerfile"
+      target: "production"
+
+# Version Management
+versioning:
+  strategy: "semver"  # semantic versioning
+  format: "v{major}.{minor}.{patch}"
+  
+  tags:
+    production:
+      - "${VERSION}"           # e.g., v1.0.0
+      - "${MAJOR}.${MINOR}"    # e.g., 1.0
+      - "${MAJOR}"             # e.g., 1
+      - "latest"
+    
+    staging:
+      - "${VERSION}-staging"   # e.g., v1.0.0-staging
+      - "staging-latest"
+      - "${BRANCH}-${SHORT_SHA}"
+    
+    development:
+      - "${VERSION}-dev"       # e.g., v1.0.0-dev
+      - "dev-latest"
+      - "${BRANCH}-${SHORT_SHA}"
+      - "${SHORT_SHA}"
+
+# Security Configuration
+security:
+  # Image signing with cosign
+  signing:
+    enabled: true
+    key_provider: "github"  # or "kms", "vault"
+    public_key: "${COSIGN_PUBLIC_KEY}"
+    private_key: "${COSIGN_PRIVATE_KEY}"
+  
+  # Vulnerability scanning
+  scanning:
+    enabled: true
+    on_push: true
+    on_schedule: "0 2 * * *"  # Daily at 2 AM
+    fail_on:
+      critical: true
+      high: true
+      medium: false
+    
+    scanners:
+      - name: "trivy"
+        config:
+          format: "sarif"
+          output: "security-report.sarif"
+      - name: "snyk"
+        config:
+          severity-threshold: "high"
+      - name: "grype" 
+        config:
+          fail-on: "medium"
+  
+  # Content trust
+  content_trust:
+    enabled: true
+    enforcement: true
+    
+  # SBOM generation
+  sbom:
+    enabled: true
+    format: "spdx-json"
+    tools:
+      - "syft"
+      - "cyclonedx"
+
+# Registry Policies
+policies:
+  retention:
+    production:
+      keep_latest: 50
+      keep_days: 365
+      keep_semver_majors: 5
+    
+    staging:
+      keep_latest: 20  
+      keep_days: 90
+      
+    development:
+      keep_latest: 10
+      keep_days: 30
+      
+  access_control:
+    production:
+      pull: ["public"]
+      push: ["maintainers", "ci-cd"]
+      admin: ["maintainers"]
+    
+    staging:
+      pull: ["team", "qa"]
+      push: ["developers", "ci-cd"]
+      admin: ["maintainers"]
+      
+    development:
+      pull: ["team"]
+      push: ["developers"]
+      admin: ["developers", "maintainers"]
+
+# Multi-platform builds
+platforms:
+  enabled: true
+  targets:
+    - "linux/amd64"
+    - "linux/arm64"
+    - "linux/arm/v7"
+  
+  optimization:
+    cache:
+      type: "registry"
+      ref: "ghcr.io/sightedit/cache"
+    
+    buildkit:
+      enabled: true
+      features:
+        - "cache-mounts" 
+        - "secrets"
+        - "ssh"
+
+# Registry Health Checks
+health_checks:
+  enabled: true
+  interval: "5m"
+  timeout: "30s"
+  retries: 3
+  
+  endpoints:
+    - url: "https://ghcr.io/v2/"
+      method: "GET"
+      expected_status: 200
+    
+    - url: "https://${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/v2/"
+      method: "GET"
+      expected_status: 200
+      auth_required: true
+
+# Notifications
+notifications:
+  channels:
+    slack:
+      enabled: true
+      webhook: "${SLACK_WEBHOOK_URL}"
+      events:
+        - "push_success"
+        - "push_failure"
+        - "scan_critical"
+        - "policy_violation"
+    
+    email:
+      enabled: true
+      smtp_server: "${SMTP_SERVER}"
+      recipients:
+        - "devops@sightedit.com"
+        - "security@sightedit.com"
+      events:
+        - "scan_critical"
+        - "policy_violation"
+
+# Automation Rules
+automation:
+  # Auto-promotion rules
+  promotion:
+    staging_to_production:
+      conditions:
+        - scan_passed: true
+        - tests_passed: true
+        - manual_approval: true
+        - min_age_hours: 24
+      
+    dev_to_staging:
+      conditions:
+        - scan_passed: true
+        - tests_passed: true
+        - branch: ["main", "release/*"]
+
+  # Auto-cleanup rules
+  cleanup:
+    untagged_images:
+      enabled: true
+      age_threshold: "7d"
+    
+    failed_builds:
+      enabled: true
+      age_threshold: "1d"
+    
+    orphaned_layers:
+      enabled: true
+      schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+
+# Monitoring and Metrics
+monitoring:
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+    port: 8080
+    
+  dashboards:
+    - name: "registry-overview"
+      panels:
+        - "push_rate"
+        - "pull_rate" 
+        - "storage_usage"
+        - "scan_results"
+    
+  alerts:
+    - name: "high_pull_rate"
+      condition: "rate(pulls[5m]) > 1000"
+      severity: "warning"
+    
+    - name: "storage_full"
+      condition: "storage_usage > 0.85"
+      severity: "critical"
+    
+    - name: "scan_failures"
+      condition: "rate(scan_failures[1h]) > 0.1"
+      severity: "warning"

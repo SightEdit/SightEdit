@@ -1,0 +1,47 @@
+# Development Dockerfile optimized for development workflow
+FROM node:18-alpine
+
+# Install development dependencies
+RUN apk add --no-cache \
+    git \
+    curl \
+    bash \
+    vim \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for better layer caching
+COPY package*.json lerna.json ./
+COPY packages/core/package*.json ./packages/core/
+COPY packages/react/package*.json ./packages/react/
+COPY packages/vue/package*.json ./packages/vue/
+COPY packages/plugin-markdown/package*.json ./packages/plugin-markdown/
+COPY packages/plugin-image-crop/package*.json ./packages/plugin-image-crop/
+COPY packages/server/node/package*.json ./packages/server/node/
+COPY website/package*.json ./website/
+
+# Install all dependencies (including devDependencies)
+RUN npm ci --legacy-peer-deps
+
+# Copy source code
+COPY . .
+
+# Create non-root user for development
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -D -H -u 1001 -h /app -s /bin/bash -G appuser -g appuser appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose ports for various services
+EXPOSE 3000 5173 8080
+
+# Set development environment
+ENV NODE_ENV=development
+ENV DEBUG=sightedit:*
+
+# Default command
+CMD ["npm", "run", "dev"]

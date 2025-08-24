@@ -1,0 +1,302 @@
+# Canary Deployment Strategy using Argo Rollouts
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: sightedit-backend-canary
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      # Canary configuration
+      maxSurge: 2
+      maxUnavailable: 1
+      
+      # Analysis template for automated validation
+      analysis:
+        templates:
+        - templateName: success-rate
+        startingStep: 2
+        args:
+        - name: service-name
+          value: sightedit-backend-service
+      
+      # Canary steps
+      steps:
+      - setWeight: 20   # 20% traffic to canary
+      - pause: 
+          duration: 30s  # Wait 30 seconds
+      
+      - setWeight: 40   # 40% traffic to canary
+      - pause:
+          duration: 1m   # Wait 1 minute
+      
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: sightedit-backend-service
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      
+      - setWeight: 60   # 60% traffic to canary
+      - pause:
+          duration: 2m   # Wait 2 minutes
+      
+      - setWeight: 80   # 80% traffic to canary
+      - pause:
+          duration: 2m   # Wait 2 minutes
+      
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: sightedit-backend-service
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      
+      # Anti-affinity to spread canary pods
+      antiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution: {}
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - sightedit-backend
+            topologyKey: kubernetes.io/hostname
+      
+      # Traffic routing (using Istio or similar)
+      trafficRouting:
+        istio:
+          virtualService:
+            name: sightedit-backend-vsvc
+            routes:
+            - primary
+          destinationRule:
+            name: sightedit-backend-dest
+            canarySubsetName: canary
+            stableSubsetName: stable
+            
+      # Rollback on failure
+      abortScaleDownDelaySeconds: 30
+      scaleDownDelaySeconds: 30
+      
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend
+  
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sightedit
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: sightedit-backend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: backend
+        image: ghcr.io/sightedit/sightedit:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-connection
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-connection
+              key: REDIS_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sightedit-secrets
+              key: JWT_SECRET
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+
+---
+# Analysis Template for Canary Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: sightedit
+spec:
+  args:
+  - name: service-name
+    value: sightedit-backend-service
+  - name: canary-hash
+  
+  metrics:
+  # Success rate metric
+  - name: success-rate
+    interval: 30s
+    count: 4
+    successCondition: result[0] >= 0.95
+    failureLimit: 2
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          sum(irate(http_requests_total{service="{{.args.service-name}}",status!~"5.*"}[2m])) / 
+          sum(irate(http_requests_total{service="{{.args.service-name}}"}[2m]))
+  
+  # Response time metric
+  - name: avg-response-time
+    interval: 30s
+    count: 4
+    successCondition: result[0] <= 1.0
+    failureLimit: 2
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{service="{{.args.service-name}}"}[2m])) by (le)
+          )
+  
+  # Error rate metric
+  - name: error-rate
+    interval: 30s
+    count: 4
+    successCondition: result[0] <= 0.05
+    failureLimit: 2
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          sum(irate(http_requests_total{service="{{.args.service-name}}",status=~"5.*"}[2m])) / 
+          sum(irate(http_requests_total{service="{{.args.service-name}}"}[2m]))
+
+---
+# Virtual Service for Traffic Splitting (Istio)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sightedit-backend-vsvc
+  namespace: sightedit
+spec:
+  hosts:
+  - sightedit-backend-service
+  http:
+  - match:
+    - headers:
+        canary-test:
+          exact: "true"
+    route:
+    - destination:
+        host: sightedit-backend-service
+        subset: canary
+  - route:
+    - destination:
+        host: sightedit-backend-service
+        subset: stable
+      weight: 100
+    - destination:
+        host: sightedit-backend-service
+        subset: canary
+      weight: 0
+
+---
+# Destination Rule for Canary Subsets
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sightedit-backend-dest
+  namespace: sightedit
+spec:
+  host: sightedit-backend-service
+  subsets:
+  - name: stable
+    labels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend
+  - name: canary
+    labels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend

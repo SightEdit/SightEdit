@@ -1,0 +1,343 @@
+# PostgreSQL Exporter Configuration for SightEdit Database Monitoring
+
+# Data source name for PostgreSQL connection
+# Format: postgresql://username:password@hostname:port/database?sslmode=require
+data_source_name: "postgresql://sightedit_monitor:monitor_password@postgres:5432/sightedit?sslmode=require"
+
+# Alternative way to specify connection using individual parameters
+# pg:
+#   host: postgres
+#   port: 5432
+#   user: sightedit_monitor
+#   password: monitor_password
+#   database: sightedit
+#   sslmode: require
+
+# Web server settings
+web:
+  listen-address: ":9187"
+  telemetry-path: /metrics
+
+# Log settings
+log:
+  level: info
+  format: json
+
+# Metrics collection settings
+metrics:
+  # Enable/disable specific metric groups
+  pg_stat_database: true
+  pg_stat_user_tables: true
+  pg_stat_user_indexes: true
+  pg_stat_activity: true
+  pg_stat_replication: true
+  pg_locks: true
+  pg_stat_bgwriter: true
+  pg_stat_archiver: true
+  pg_stat_wal_receiver: true
+  pg_settings: true
+  pg_postmaster: true
+  pg_database: true
+
+# Query configuration for custom metrics
+queries:
+  # SightEdit specific table metrics
+  - name: sightedit_table_stats
+    help: "SightEdit application table statistics"
+    labels:
+      - "schemaname"
+      - "tablename"
+    values:
+      - "n_tup_ins"
+      - "n_tup_upd"
+      - "n_tup_del"
+      - "n_tup_hot_upd"
+      - "n_live_tup"
+      - "n_dead_tup"
+      - "last_vacuum"
+      - "last_autovacuum"
+      - "last_analyze"
+      - "last_autoanalyze"
+      - "vacuum_count"
+      - "autovacuum_count"
+      - "analyze_count"
+      - "autoanalyze_count"
+    query: |
+      SELECT 
+        schemaname,
+        tablename,
+        n_tup_ins,
+        n_tup_upd,
+        n_tup_del,
+        n_tup_hot_upd,
+        n_live_tup,
+        n_dead_tup,
+        EXTRACT(EPOCH FROM last_vacuum) as last_vacuum,
+        EXTRACT(EPOCH FROM last_autovacuum) as last_autovacuum,
+        EXTRACT(EPOCH FROM last_analyze) as last_analyze,
+        EXTRACT(EPOCH FROM last_autoanalyze) as last_autoanalyze,
+        vacuum_count,
+        autovacuum_count,
+        analyze_count,
+        autoanalyze_count
+      FROM pg_stat_user_tables
+      WHERE schemaname = 'public'
+        AND tablename IN ('users', 'editor_sessions', 'save_operations', 'api_keys', 'audit_logs');
+
+  # SightEdit user activity metrics
+  - name: sightedit_user_activity
+    help: "Active user sessions and connections"
+    labels:
+      - "state"
+      - "application_name"
+    values:
+      - "count"
+    query: |
+      SELECT 
+        state,
+        COALESCE(application_name, 'unknown') as application_name,
+        COUNT(*) as count
+      FROM pg_stat_activity
+      WHERE datname = 'sightedit'
+        AND pid != pg_backend_pid()
+      GROUP BY state, application_name;
+
+  # Long running queries
+  - name: sightedit_long_running_queries
+    help: "Queries running longer than specified threshold"
+    labels:
+      - "query_type"
+      - "state"
+    values:
+      - "count"
+      - "max_duration"
+      - "avg_duration"
+    query: |
+      SELECT 
+        CASE 
+          WHEN query ILIKE 'SELECT%' THEN 'select'
+          WHEN query ILIKE 'INSERT%' THEN 'insert'
+          WHEN query ILIKE 'UPDATE%' THEN 'update'
+          WHEN query ILIKE 'DELETE%' THEN 'delete'
+          ELSE 'other'
+        END as query_type,
+        state,
+        COUNT(*) as count,
+        MAX(EXTRACT(EPOCH FROM (now() - query_start))) as max_duration,
+        AVG(EXTRACT(EPOCH FROM (now() - query_start))) as avg_duration
+      FROM pg_stat_activity
+      WHERE datname = 'sightedit'
+        AND state = 'active'
+        AND query_start < now() - interval '30 seconds'
+        AND pid != pg_backend_pid()
+      GROUP BY query_type, state;
+
+  # Table bloat estimation
+  - name: sightedit_table_bloat
+    help: "Estimated table bloat for SightEdit tables"
+    labels:
+      - "schemaname"
+      - "tablename"
+    values:
+      - "bloat_ratio"
+      - "bloat_mb"
+    query: |
+      SELECT 
+        schemaname,
+        tablename,
+        CASE 
+          WHEN pg_total_relation_size(schemaname||'.'||tablename) > 0 
+          THEN (n_dead_tup::float / (n_live_tup + n_dead_tup + 1)) * 100
+          ELSE 0 
+        END as bloat_ratio,
+        CASE 
+          WHEN pg_total_relation_size(schemaname||'.'||tablename) > 0 
+          THEN (n_dead_tup::float / (n_live_tup + n_dead_tup + 1)) * 
+               (pg_total_relation_size(schemaname||'.'||tablename) / (1024*1024))
+          ELSE 0 
+        END as bloat_mb
+      FROM pg_stat_user_tables
+      WHERE schemaname = 'public'
+        AND tablename IN ('users', 'editor_sessions', 'save_operations', 'api_keys', 'audit_logs');
+
+  # Index usage statistics
+  - name: sightedit_index_usage
+    help: "Index usage statistics for SightEdit tables"
+    labels:
+      - "schemaname"
+      - "tablename"
+      - "indexname"
+    values:
+      - "idx_scan"
+      - "idx_tup_read"
+      - "idx_tup_fetch"
+      - "idx_blks_read"
+      - "idx_blks_hit"
+    query: |
+      SELECT 
+        schemaname,
+        tablename,
+        indexname,
+        idx_scan,
+        idx_tup_read,
+        idx_tup_fetch,
+        idx_blks_read,
+        idx_blks_hit
+      FROM pg_stat_user_indexes
+      WHERE schemaname = 'public'
+        AND tablename IN ('users', 'editor_sessions', 'save_operations', 'api_keys', 'audit_logs');
+
+  # Database size metrics
+  - name: sightedit_database_size
+    help: "Database and table sizes for SightEdit"
+    labels:
+      - "name"
+      - "type"
+    values:
+      - "size_bytes"
+    query: |
+      SELECT 
+        datname as name,
+        'database' as type,
+        pg_database_size(datname) as size_bytes
+      FROM pg_database
+      WHERE datname = 'sightedit'
+      UNION ALL
+      SELECT 
+        tablename as name,
+        'table' as type,
+        pg_total_relation_size('public.'||tablename) as size_bytes
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename IN ('users', 'editor_sessions', 'save_operations', 'api_keys', 'audit_logs');
+
+  # Connection pool metrics
+  - name: sightedit_connection_pool
+    help: "Connection pool statistics"
+    labels:
+      - "pool_name"
+      - "state"
+    values:
+      - "connections"
+    query: |
+      SELECT 
+        'sightedit_pool' as pool_name,
+        CASE 
+          WHEN state = 'active' THEN 'active'
+          WHEN state = 'idle' THEN 'idle'
+          WHEN state = 'idle in transaction' THEN 'idle_in_transaction'
+          WHEN state = 'idle in transaction (aborted)' THEN 'idle_in_transaction_aborted'
+          ELSE 'other'
+        END as state,
+        COUNT(*) as connections
+      FROM pg_stat_activity
+      WHERE datname = 'sightedit'
+        AND pid != pg_backend_pid()
+      GROUP BY state;
+
+  # Query performance metrics
+  - name: sightedit_query_performance
+    help: "Query performance statistics by operation type"
+    labels:
+      - "operation"
+    values:
+      - "calls"
+      - "total_time"
+      - "mean_time"
+      - "rows"
+    query: |
+      SELECT 
+        CASE 
+          WHEN query ILIKE '%editor_sessions%' AND query ILIKE 'INSERT%' THEN 'session_start'
+          WHEN query ILIKE '%save_operations%' AND query ILIKE 'INSERT%' THEN 'save_operation'
+          WHEN query ILIKE '%users%' AND query ILIKE 'SELECT%' THEN 'user_lookup'
+          WHEN query ILIKE '%api_keys%' AND query ILIKE 'SELECT%' THEN 'api_key_validation'
+          ELSE 'other'
+        END as operation,
+        calls,
+        total_time,
+        mean_time,
+        rows
+      FROM pg_stat_statements
+      WHERE query ILIKE '%sightedit%'
+        OR query ILIKE '%users%'
+        OR query ILIKE '%editor_sessions%'
+        OR query ILIKE '%save_operations%'
+        OR query ILIKE '%api_keys%';
+
+  # Lock statistics
+  - name: sightedit_locks
+    help: "Lock statistics for SightEdit database"
+    labels:
+      - "locktype"
+      - "mode"
+      - "granted"
+    values:
+      - "count"
+    query: |
+      SELECT 
+        locktype,
+        mode,
+        granted::text,
+        COUNT(*) as count
+      FROM pg_locks
+      WHERE database = (SELECT oid FROM pg_database WHERE datname = 'sightedit')
+      GROUP BY locktype, mode, granted;
+
+  # Replication lag (if using replication)
+  - name: sightedit_replication_lag
+    help: "Replication lag in seconds"
+    labels:
+      - "application_name"
+      - "state"
+    values:
+      - "lag_seconds"
+    query: |
+      SELECT 
+        application_name,
+        state,
+        EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) as lag_seconds
+      FROM pg_stat_replication
+      WHERE application_name LIKE '%sightedit%';
+
+# Auto-discover databases (disabled for security)
+autodiscover_databases: false
+
+# Exclude system databases
+exclude_databases:
+  - template0
+  - template1
+
+# Connection settings
+connection:
+  max_connections: 10
+  max_idle_connections: 5
+  max_lifetime: "5m"
+  
+# Security settings
+disable_default_metrics: false
+disable_settings_metrics: false
+
+# Runtime settings
+runtime:
+  gomaxprocs: 2
+  
+# Include/exclude specific metrics
+include_metric_groups:
+  - "pg_up"
+  - "pg_stat_database"
+  - "pg_stat_user_tables"
+  - "pg_stat_user_indexes"
+  - "pg_stat_activity"
+  - "pg_locks"
+  - "pg_stat_bgwriter"
+  - "pg_settings"
+
+exclude_metric_groups: []
+
+# Metric relabeling
+metric_relabeling:
+  - source_labels: [__name__]
+    regex: 'pg_stat_database_.*'
+    target_label: 'database_metric'
+    replacement: 'true'

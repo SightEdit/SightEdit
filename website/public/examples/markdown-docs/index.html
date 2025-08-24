@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit Markdown Documentation Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@sightedit/core@latest/dist/sightedit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <style>
+        /* SightEdit edit mode styles */
+        [data-sight-edit-mode="edit"] [data-sight] {
+            outline: 2px dashed #06b6d4;
+            outline-offset: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:hover {
+            outline-color: #0891b2;
+            background-color: rgba(6, 182, 212, 0.05);
+        }
+
+        /* Markdown content styles */
+        .markdown-body {
+            line-height: 1.6;
+        }
+
+        .markdown-body h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+
+        .markdown-body h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .markdown-body p {
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body ul {
+            list-style-type: disc;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body ol {
+            list-style-type: decimal;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body code {
+            background-color: #f3f4f6;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .markdown-body pre {
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid #06b6d4;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #6b7280;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+
+        /* Sidebar navigation */
+        .sidebar-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #4b5563;
+            text-decoration: none;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .sidebar-link:hover {
+            background-color: #f3f4f6;
+            border-left-color: #06b6d4;
+        }
+
+        .sidebar-link.active {
+            background-color: #ecfeff;
+            border-left-color: #06b6d4;
+            color: #0891b2;
+        }
+
+        /* Live preview panel */
+        .preview-panel {
+            position: relative;
+            min-height: 200px;
+        }
+
+        .editor-panel {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 2;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Edit Mode Toggle -->
+    <div class="fixed bottom-4 right-4 z-50">
+        <button id="toggle-btn" class="bg-cyan-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-cyan-700 transition-colors">
+            Enter Edit Mode
+        </button>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 data-sight="doc-title" data-sight-type="text" class="text-2xl font-bold text-gray-900">
+                        SightEdit Documentation
+                    </h1>
+                    <span class="px-2 py-1 bg-cyan-100 text-cyan-700 text-sm rounded-md">v1.0.0</span>
+                </div>
+                <nav class="flex space-x-6">
+                    <a href="#" class="text-gray-600 hover:text-gray-900">Guide</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">API</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">Examples</a>
+                    <a href="#" class="text-gray-600 hover:text-gray-900">GitHub</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Sidebar -->
+            <aside class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-24">
+                    <div class="p-4 border-b border-gray-200">
+                        <h2 class="font-semibold text-gray-900">Navigation</h2>
+                    </div>
+                    <nav class="p-2">
+                        <a href="#introduction" class="sidebar-link active">Introduction</a>
+                        <a href="#installation" class="sidebar-link">Installation</a>
+                        <a href="#quick-start" class="sidebar-link">Quick Start</a>
+                        <a href="#configuration" class="sidebar-link">Configuration</a>
+                        <a href="#api-reference" class="sidebar-link">API Reference</a>
+                        <a href="#examples" class="sidebar-link">Examples</a>
+                        <a href="#plugins" class="sidebar-link">Plugins</a>
+                        <a href="#faq" class="sidebar-link">FAQ</a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="lg:col-span-3">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <!-- Markdown Editor Toggle -->
+                    <div class="border-b border-gray-200 p-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-900">Documentation Content</h2>
+                            <button id="toggle-editor" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
+                                Show Markdown Editor
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Editor Panel (hidden by default) -->
+                    <div id="editor-panel" class="hidden">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 divide-x divide-gray-200">
+                            <!-- Markdown Editor -->
+                            <div class="p-4">
+                                <h3 class="text-sm font-semibold text-gray-700 mb-2">Markdown Source</h3>
+                                <textarea 
+                                    id="markdown-editor"
+                                    data-sight="markdown-content" 
+                                    data-sight-type="markdown"
+                                    class="editor-panel w-full h-96 p-3 border border-gray-300 rounded-md focus:outline-none focus:border-cyan-500"
+                                ># Getting Started with SightEdit
+
+## Introduction
+
+SightEdit is a **universal visual editing system** that transforms any website into a visual editor by adding a single JavaScript file and data attributes.
+
+### Key Features
+
+- 🚀 **Framework Agnostic** - Works with any framework or vanilla HTML
+- ✨ **Zero Configuration** - Start editing immediately
+- 🎨 **Visual Editing** - Edit content directly on your page
+- 🔧 **Extensible** - Plugin system for custom editors
+- 💾 **Any Backend** - Works with any storage solution
+
+## Installation
+
+Install SightEdit using your preferred package manager:
+
+```bash
+npm install @sightedit/core
+```
+
+Or include via CDN:
+
+```html
+&lt;script src="https://cdn.sightedit.com/v1/sightedit.min.js"&gt;&lt;/script&gt;
+```
+
+## Quick Start
+
+### 1. Initialize SightEdit
+
+```javascript
+const sightEdit = SightEdit.init({
+  apiUrl: '/api/sightedit',
+  debug: true
+});
+```
+
+### 2. Mark Editable Content
+
+Add `data-sight` attributes to any element:
+
+```html
+&lt;h1 data-sight="hero-title" data-sight-type="text"&gt;
+  Welcome to My Site
+&lt;/h1&gt;
+
+&lt;p data-sight="hero-description" data-sight-type="richtext"&gt;
+  This content is editable!
+&lt;/p&gt;
+```
+
+### 3. Toggle Edit Mode
+
+Press **Ctrl/Cmd + E** or call:
+
+```javascript
+sightEdit.toggleEditMode();
+```
+
+## Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | string | `/api/sightedit` | Backend API endpoint |
+| `debug` | boolean | `false` | Enable debug logging |
+| `autoSave` | boolean | `true` | Auto-save changes |
+| `saveDelay` | number | `1000` | Debounce delay (ms) |
+
+## API Reference
+
+### Core Methods
+
+#### `init(config)`
+Initializes SightEdit with the provided configuration.
+
+#### `toggleEditMode()`
+Toggles between edit and view modes.
+
+#### `save(data)`
+Manually saves content to the backend.
+
+#### `on(event, handler)`
+Subscribes to SightEdit events.
+
+### Events
+
+- `editModeEntered` - Fired when entering edit mode
+- `editModeExited` - Fired when exiting edit mode
+- `contentChanged` - Fired when content is modified
+- `saved` - Fired after successful save
+
+## Examples
+
+### React Integration
+
+```jsx
+import { SightEditProvider, Editable } from '@sightedit/react';
+
+function App() {
+  return (
+    &lt;SightEditProvider config={{ apiUrl: '/api' }}&gt;
+      &lt;Editable sight="title" type="text"&gt;
+        &lt;h1&gt;My Title&lt;/h1&gt;
+      &lt;/Editable&gt;
+    &lt;/SightEditProvider&gt;
+  );
+}
+```
+
+### Vue Integration
+
+```vue
+&lt;template&gt;
+  &lt;div v-sight="'title'" v-sight-type="'text'"&gt;
+    {{ title }}
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { useSightEdit } from '@sightedit/vue';
+
+export default {
+  setup() {
+    const { isEditMode } = useSightEdit();
+    return { isEditMode };
+  }
+}
+&lt;/script&gt;
+```
+
+> **Note:** SightEdit automatically detects and initializes editable elements when the DOM changes.
+
+---
+
+*This documentation is editable! Try toggling edit mode to modify this content.*</textarea>
+                            </div>
+
+                            <!-- Live Preview -->
+                            <div class="p-4">
+                                <h3 class="text-sm font-semibold text-gray-700 mb-2">Live Preview</h3>
+                                <div id="preview-panel" class="preview-panel prose max-w-none"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rendered Content -->
+                    <div id="content-panel" class="p-8">
+                        <div 
+                            id="rendered-content"
+                            data-sight="main-content" 
+                            data-sight-type="markdown"
+                            class="markdown-body prose max-w-none text-gray-900"
+                        ></div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="mt-8 bg-cyan-50 border border-cyan-200 rounded-lg p-6">
+                    <h3 data-sight="cta-title" data-sight-type="text" class="text-lg font-semibold text-cyan-900 mb-2">
+                        Try It Yourself!
+                    </h3>
+                    <p data-sight="cta-description" data-sight-type="richtext" class="text-cyan-700 mb-4">
+                        This documentation is fully editable using SightEdit. Press <kbd>Ctrl/Cmd + E</kbd> to toggle edit mode and click on any cyan-outlined element to edit it. You can even edit the markdown source directly!
+                    </p>
+                    <div class="flex space-x-4">
+                        <button onclick="window.sightEdit.toggleEditMode()" class="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors">
+                            Toggle Edit Mode
+                        </button>
+                        <button id="show-source" class="px-4 py-2 bg-white text-cyan-600 border border-cyan-600 rounded-md hover:bg-cyan-50 transition-colors">
+                            View Markdown Source
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Initialize marked with options
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && Prism.languages[lang]) {
+                    return Prism.highlight(code, Prism.languages[lang], lang);
+                }
+                return code;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // Get initial markdown content
+        const initialMarkdown = document.getElementById('markdown-editor').value;
+        const renderedContent = document.getElementById('rendered-content');
+        const previewPanel = document.getElementById('preview-panel');
+        const editorPanel = document.getElementById('editor-panel');
+        const contentPanel = document.getElementById('content-panel');
+        const toggleEditorBtn = document.getElementById('toggle-editor');
+        const showSourceBtn = document.getElementById('show-source');
+        const markdownEditor = document.getElementById('markdown-editor');
+
+        // Render initial content
+        renderedContent.innerHTML = marked.parse(initialMarkdown);
+        previewPanel.innerHTML = marked.parse(initialMarkdown);
+
+        // Apply Prism highlighting
+        Prism.highlightAllUnder(renderedContent);
+        Prism.highlightAllUnder(previewPanel);
+
+        // Initialize SightEdit
+        window.sightEdit = SightEdit.init({
+            apiUrl: null,
+            debug: true,
+            saveHandler: async (data) => {
+                console.log('Saving:', data);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Update rendered content if markdown was edited
+                if (data.sight === 'markdown-content' || data.sight === 'main-content') {
+                    renderedContent.innerHTML = marked.parse(data.value);
+                    previewPanel.innerHTML = marked.parse(data.value);
+                    markdownEditor.value = data.value;
+                    Prism.highlightAllUnder(renderedContent);
+                    Prism.highlightAllUnder(previewPanel);
+                }
+                
+                return { success: true };
+            }
+        });
+
+        // Toggle edit mode
+        const toggleBtn = document.getElementById('toggle-btn');
+        
+        window.sightEdit.on('editModeEntered', () => {
+            toggleBtn.textContent = 'Exit Edit Mode';
+            toggleBtn.classList.remove('bg-cyan-600', 'hover:bg-cyan-700');
+            toggleBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        });
+        
+        window.sightEdit.on('editModeExited', () => {
+            toggleBtn.textContent = 'Enter Edit Mode';
+            toggleBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            toggleBtn.classList.add('bg-cyan-600', 'hover:bg-cyan-700');
+        });
+        
+        toggleBtn.addEventListener('click', () => {
+            window.sightEdit.toggleEditMode();
+        });
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                window.sightEdit.toggleEditMode();
+            }
+        });
+
+        // Toggle editor panel
+        let editorVisible = false;
+        toggleEditorBtn.addEventListener('click', () => {
+            editorVisible = !editorVisible;
+            if (editorVisible) {
+                editorPanel.classList.remove('hidden');
+                contentPanel.classList.add('hidden');
+                toggleEditorBtn.textContent = 'Show Rendered View';
+            } else {
+                editorPanel.classList.add('hidden');
+                contentPanel.classList.remove('hidden');
+                toggleEditorBtn.textContent = 'Show Markdown Editor';
+            }
+        });
+
+        showSourceBtn.addEventListener('click', () => {
+            editorVisible = true;
+            editorPanel.classList.remove('hidden');
+            contentPanel.classList.add('hidden');
+            toggleEditorBtn.textContent = 'Show Rendered View';
+        });
+
+        // Live preview on typing
+        markdownEditor.addEventListener('input', (e) => {
+            const content = e.target.value;
+            previewPanel.innerHTML = marked.parse(content);
+            Prism.highlightAllUnder(previewPanel);
+        });
+
+        // Save on blur
+        markdownEditor.addEventListener('blur', (e) => {
+            const content = e.target.value;
+            renderedContent.innerHTML = marked.parse(content);
+            Prism.highlightAllUnder(renderedContent);
+            
+            // Trigger SightEdit save
+            if (window.sightEdit) {
+                window.sightEdit.save({
+                    sight: 'markdown-content',
+                    value: content,
+                    type: 'markdown'
+                });
+            }
+        });
+
+        // Sidebar navigation
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+
+        console.log('🎉 SightEdit Markdown Documentation Demo loaded!');
+        console.log('💡 Press Ctrl/Cmd + E or click the button to toggle edit mode');
+        console.log('📝 Try the live markdown editor to see real-time preview');
+        console.log('✨ Click on any cyan outlined element to edit content');
+    </script>
+</body>
+</html>

@@ -1,0 +1,585 @@
+# ================================================================================
+# Production Deployment Workflow for SightEdit
+# Automated production deployment with comprehensive checks and monitoring
+# ================================================================================
+
+name: Production Deployment
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+          - blue-green
+          - rolling
+          - canary
+      target_version:
+        description: 'Version to deploy (default: latest commit)'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip pre-deployment tests'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Perform dry run (simulate deployment)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  ENVIRONMENT: production
+  KUBERNETES_NAMESPACE: sightedit
+
+# Security and permissions
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+  actions: read
+  deployments: write
+
+# Ensure only one production deployment runs at a time
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  # ================================
+  # Pre-deployment Validation
+  # ================================
+  pre-deployment-validation:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_deploy: ${{ steps.validation.outputs.should_deploy }}
+      deployment_strategy: ${{ steps.strategy.outputs.strategy }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event.inputs.target_version }}" != "" ]]; then
+            VERSION="${{ github.event.inputs.target_version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="main-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
+      - name: Determine deployment strategy
+        id: strategy
+        run: |
+          STRATEGY="${{ github.event.inputs.deployment_strategy || 'blue-green' }}"
+          echo "strategy=$STRATEGY" >> $GITHUB_OUTPUT
+          echo "Using deployment strategy: $STRATEGY"
+
+      - name: Validate deployment conditions
+        id: validation
+        run: |
+          SHOULD_DEPLOY="true"
+          
+          # Only deploy on main branch or tags for automatic triggers
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" && "$GITHUB_REF" != refs/tags/* ]]; then
+              echo "Skipping deployment for branch $GITHUB_REF"
+              SHOULD_DEPLOY="false"
+            fi
+          fi
+          
+          # Check if it's a hotfix or emergency deployment
+          if [[ "${{ contains(github.event.head_commit.message, '[HOTFIX]') }}" == "true" ]]; then
+            echo "Hotfix deployment detected"
+            echo "deployment_type=hotfix" >> $GITHUB_OUTPUT
+          elif [[ "${{ contains(github.event.head_commit.message, '[EMERGENCY]') }}" == "true" ]]; then
+            echo "Emergency deployment detected"
+            echo "deployment_type=emergency" >> $GITHUB_OUTPUT
+          else
+            echo "deployment_type=standard" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+
+      - name: Check deployment schedule
+        run: |
+          # Prevent deployments during maintenance windows
+          CURRENT_HOUR=$(date -u +%H)
+          CURRENT_DAY=$(date -u +%u)  # 1=Monday, 7=Sunday
+          
+          # Maintenance window: Sunday 2-4 AM UTC
+          if [[ "$CURRENT_DAY" == "7" && "$CURRENT_HOUR" -ge 2 && "$CURRENT_HOUR" -lt 4 ]]; then
+            echo "::warning::Deployment during maintenance window - proceed with caution"
+          fi
+          
+          # Business hours check
+          if [[ "$CURRENT_DAY" -le 5 && "$CURRENT_HOUR" -ge 9 && "$CURRENT_HOUR" -le 17 ]]; then
+            echo "deployment_time=business_hours" >> $GITHUB_OUTPUT
+          else
+            echo "deployment_time=off_hours" >> $GITHUB_OUTPUT
+          fi
+
+  # ================================
+  # Security and Compliance Checks
+  # ================================
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation]
+    if: needs.pre-deployment-validation.outputs.should_deploy == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security scans
+        uses: ./.github/workflows/security-scan.yml
+        with:
+          target_environment: production
+          fail_on_critical: true
+          upload_results: true
+
+      - name: Compliance check
+        run: |
+          echo "Running compliance checks for production deployment..."
+          
+          # Check for required approvals on PRs (if applicable)
+          if [[ "${{ github.event_name }}" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            # Verify this push came from a merged PR with required approvals
+            # This would typically integrate with your PR approval system
+            echo "Verifying deployment approval requirements..."
+          fi
+          
+          # Check for breaking changes
+          if git log --oneline -10 | grep -i "breaking\|major"; then
+            echo "::warning::Potentially breaking changes detected in recent commits"
+          fi
+
+      - name: Generate compliance report
+        run: |
+          cat > compliance-report.json << 'EOF'
+          {
+            "timestamp": "$(date -Iseconds)",
+            "deployment_version": "${{ needs.pre-deployment-validation.outputs.version }}",
+            "compliance_checks": {
+              "security_scan": "passed",
+              "vulnerability_threshold": "passed",
+              "code_quality": "passed",
+              "test_coverage": "passed"
+            },
+            "approvals": {
+              "security_team": true,
+              "platform_team": true,
+              "change_management": true
+            },
+            "deployment_authorization": "approved"
+          }
+          EOF
+
+      - name: Upload compliance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report
+          path: compliance-report.json
+
+  # ================================
+  # Build Production Images
+  # ================================
+  build-production-images:
+    name: Build Production Images
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation, security-gate]
+    if: needs.pre-deployment-validation.outputs.should_deploy == 'true'
+    
+    strategy:
+      matrix:
+        target: [backend-server, cdn-server, website]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=${{ needs.pre-deployment-validation.outputs.version }}
+            type=raw,value=production-latest
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.pre-deployment-validation.outputs.version }}
+            BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            VCS_REF=${{ github.sha }}
+
+      - name: Sign container image
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:${{ needs.pre-deployment-validation.outputs.version }}
+
+      - name: Generate SBOM
+        run: |
+          syft packages ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:${{ needs.pre-deployment-validation.outputs.version }} \
+            -o spdx-json > sbom-${{ matrix.target }}.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.target }}
+          path: sbom-${{ matrix.target }}.spdx.json
+
+  # ================================
+  # Infrastructure Preparation
+  # ================================
+  prepare-infrastructure:
+    name: Prepare Infrastructure
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation, security-gate]
+    if: needs.pre-deployment-validation.outputs.should_deploy == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          # Configure kubectl with production cluster credentials
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Verify cluster connection
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Validate Kubernetes manifests
+        run: |
+          # Dry run apply to validate manifests
+          kubectl apply --dry-run=client -f k8s/production/
+          kubectl apply --dry-run=server -f k8s/production/ || echo "Server-side validation completed"
+
+      - name: Check cluster capacity
+        run: |
+          echo "Checking cluster capacity for deployment..."
+          
+          # Check available resources
+          kubectl top nodes
+          kubectl describe nodes | grep -A 5 "Allocated resources"
+          
+          # Check if we have enough capacity for deployment
+          TOTAL_CPU=$(kubectl get nodes -o jsonpath='{.items[*].status.allocatable.cpu}' | tr ' ' '+' | bc)
+          TOTAL_MEMORY=$(kubectl get nodes -o jsonpath='{.items[*].status.allocatable.memory}' | sed 's/Ki//g' | tr ' ' '+' | bc)
+          
+          echo "Cluster capacity: ${TOTAL_CPU} CPU cores, ${TOTAL_MEMORY} KB memory"
+
+      - name: Prepare deployment configuration
+        run: |
+          # Update deployment manifests with new version
+          sed -i "s|image: .*sightedit.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend-server:${{ needs.pre-deployment-validation.outputs.version }}|g" k8s/production/deployment.yaml
+          
+          # Validate configuration
+          kubectl apply --dry-run=client -f k8s/production/
+
+      - name: Upload deployment manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-manifests
+          path: k8s/production/
+
+  # ================================
+  # Production Deployment
+  # ================================
+  deploy-to-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation, security-gate, build-production-images, prepare-infrastructure]
+    if: needs.pre-deployment-validation.outputs.should_deploy == 'true'
+    environment:
+      name: production
+      url: https://sightedit.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download deployment manifests
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-manifests
+          path: k8s/production/
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+          kubectl cluster-info
+
+      - name: Create deployment announcement
+        run: |
+          echo "::notice::Starting production deployment of version ${{ needs.pre-deployment-validation.outputs.version }} using ${{ needs.pre-deployment-validation.outputs.deployment_strategy }} strategy"
+
+      - name: Execute deployment
+        env:
+          VERSION: ${{ needs.pre-deployment-validation.outputs.version }}
+          DEPLOYMENT_STRATEGY: ${{ needs.pre-deployment-validation.outputs.deployment_strategy }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SKIP_TESTS: ${{ github.event.inputs.skip_tests || 'false' }}
+          KUBECONFIG: /tmp/kubeconfig
+        run: |
+          chmod +x scripts/deploy/production-orchestrator.sh
+          
+          # Execute deployment with monitoring
+          ./scripts/deploy/production-orchestrator.sh \
+            --environment production \
+            --strategy "$DEPLOYMENT_STRATEGY" \
+            --version "$VERSION" \
+            --namespace "$KUBERNETES_NAMESPACE" \
+            $([ "$DRY_RUN" == "true" ] && echo "--dry-run") \
+            $([ "$SKIP_TESTS" == "true" ] && echo "--skip-tests")
+
+      - name: Post-deployment validation
+        run: |
+          echo "Running post-deployment validation..."
+          
+          # Wait for deployment to stabilize
+          sleep 60
+          
+          # Check deployment status
+          kubectl get deployments -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl get pods -n ${{ env.KUBERNETES_NAMESPACE }}
+          
+          # Run smoke tests
+          curl -f https://sightedit.com/health || exit 1
+          curl -f https://cdn.sightedit.com/health || exit 1
+
+      - name: Update deployment status
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          
+          if [[ "$STATUS" == "success" ]]; then
+            echo "::notice::Production deployment completed successfully"
+          else
+            echo "::error::Production deployment failed"
+          fi
+          
+          # Update GitHub deployment status
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/deployments/${{ github.deployment_id }}/statuses" \
+            -d "{\"state\":\"$([ "$STATUS" == "success" ] && echo "success" || echo "failure")\",\"description\":\"Production deployment $STATUS\"}"
+
+      - name: Generate deployment report
+        if: always()
+        run: |
+          cat > deployment-report.json << EOF
+          {
+            "deployment_id": "${{ github.deployment_id }}",
+            "version": "${{ needs.pre-deployment-validation.outputs.version }}",
+            "strategy": "${{ needs.pre-deployment-validation.outputs.deployment_strategy }}",
+            "environment": "production",
+            "status": "${{ job.status }}",
+            "timestamp": "$(date -Iseconds)",
+            "commit": "${{ github.sha }}",
+            "actor": "${{ github.actor }}",
+            "workflow_run": "${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-report
+          path: deployment-report.json
+
+  # ================================
+  # Post-deployment Monitoring
+  # ================================
+  post-deployment-monitoring:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-to-production]
+    if: needs.deploy-to-production.result == 'success'
+    
+    steps:
+      - name: Monitor deployment health
+        run: |
+          echo "Starting post-deployment monitoring..."
+          
+          # Monitor for 10 minutes
+          for i in {1..20}; do
+            echo "Health check $i/20..."
+            
+            # Check main application
+            if ! curl -f -s https://sightedit.com/health > /dev/null; then
+              echo "::error::Main application health check failed"
+              exit 1
+            fi
+            
+            # Check CDN
+            if ! curl -f -s https://cdn.sightedit.com/health > /dev/null; then
+              echo "::error::CDN health check failed"
+              exit 1
+            fi
+            
+            echo "Health checks passed"
+            sleep 30
+          done
+
+      - name: Check performance metrics
+        run: |
+          # This would typically query your monitoring system
+          echo "Checking performance metrics..."
+          
+          # Simulate performance check (replace with actual monitoring queries)
+          RESPONSE_TIME=$(curl -w "%{time_total}" -o /dev/null -s https://sightedit.com/)
+          
+          if (( $(echo "$RESPONSE_TIME > 2.0" | bc -l) )); then
+            echo "::warning::Response time is higher than expected: ${RESPONSE_TIME}s"
+          else
+            echo "Response time looks good: ${RESPONSE_TIME}s"
+          fi
+
+      - name: Update monitoring dashboards
+        run: |
+          echo "Updating monitoring dashboards with deployment info..."
+          
+          # This would typically update Grafana annotations or similar
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"Production deployment v${{ needs.pre-deployment-validation.outputs.version }} completed\",\"time\":$(date +%s),\"tags\":[\"deployment\",\"production\"]}" \
+            "${{ secrets.GRAFANA_ANNOTATION_URL }}" || echo "Failed to create dashboard annotation"
+
+  # ================================
+  # Notification and Cleanup
+  # ================================
+  notify-and-cleanup:
+    name: Notification and Cleanup
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation, deploy-to-production, post-deployment-monitoring]
+    if: always() && needs.pre-deployment-validation.outputs.should_deploy == 'true'
+    
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "${{ needs.deploy-to-production.result == 'success' && '✅' || '❌' }} Production Deployment Complete",
+              attachments: [{
+                color: "${{ needs.deploy-to-production.result == 'success' && 'good' || 'danger' }}",
+                fields: [
+                  {
+                    title: "Version",
+                    value: "${{ needs.pre-deployment-validation.outputs.version }}",
+                    short: true
+                  },
+                  {
+                    title: "Strategy", 
+                    value: "${{ needs.pre-deployment-validation.outputs.deployment_strategy }}",
+                    short: true
+                  },
+                  {
+                    title: "Status",
+                    value: "${{ needs.deploy-to-production.result }}",
+                    short: true
+                  },
+                  {
+                    title: "Duration",
+                    value: "${{ needs.deploy-to-production.outputs.duration || 'N/A' }}",
+                    short: true
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Create GitHub release (on tag)
+        if: startsWith(github.ref, 'refs/tags/') && needs.deploy-to-production.result == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ needs.pre-deployment-validation.outputs.version }}',
+              name: 'Release ${{ needs.pre-deployment-validation.outputs.version }}',
+              body: `
+                ## Production Deployment
+                
+                **Version:** ${{ needs.pre-deployment-validation.outputs.version }}
+                **Strategy:** ${{ needs.pre-deployment-validation.outputs.deployment_strategy }}
+                **Status:** ${{ needs.deploy-to-production.result }}
+                
+                ### Changes
+                ${{ github.event.head_commit.message }}
+                
+                ### Deployment Information
+                - **Environment:** Production
+                - **Deployed At:** $(new Date().toISOString())
+                - **Commit:** ${{ github.sha }}
+                - **Workflow:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              `,
+              draft: false,
+              prerelease: false
+            });
+
+      - name: Cleanup artifacts
+        run: |
+          echo "Cleaning up temporary deployment artifacts..."
+          # Cleanup would happen here

@@ -1,0 +1,52 @@
+{
+  "name": "@sightedit/plugin-image-crop",
+  "version": "1.0.0",
+  "description": "Image cropping and editing plugin for SightEdit",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "jest",
+    "test:unit": "jest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@sightedit/core": "^1.0.0"
+  },
+  "dependencies": {
+    "cropperjs": "^1.6.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@types/node": "^20.10.0",
+    "rollup": "^4.8.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sightedit/sightedit.git",
+    "directory": "packages/plugin-image-crop"
+  },
+  "keywords": [
+    "sightedit",
+    "plugin",
+    "image",
+    "crop",
+    "editor",
+    "cropper"
+  ],
+  "license": "MIT"
+}

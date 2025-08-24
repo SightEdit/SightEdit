@@ -1,0 +1,377 @@
+# ================================================================================
+# KEDA (Kubernetes Event-Driven Autoscaling) Configuration for SightEdit
+# Advanced autoscaling based on custom metrics and external events
+# ================================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: sightedit-backend-scaler
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    name: sightedit-backend
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 2
+  maxReplicaCount: 50
+  
+  triggers:
+  # Scale based on HTTP requests per second
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: http_requests_per_second
+      threshold: '100'
+      query: sum(rate(http_requests_total{job="sightedit-backend"}[2m]))
+      
+  # Scale based on CPU utilization
+  - type: prometheus  
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: cpu_usage_percentage
+      threshold: '70'
+      query: sum(rate(container_cpu_usage_seconds_total{pod=~"sightedit-backend-.*"}[2m])) / sum(container_spec_cpu_quota{pod=~"sightedit-backend-.*"} / container_spec_cpu_period{pod=~"sightedit-backend-.*"}) * 100
+
+  # Scale based on memory utilization
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: memory_usage_percentage
+      threshold: '80'
+      query: sum(container_memory_working_set_bytes{pod=~"sightedit-backend-.*"}) / sum(container_spec_memory_limit_bytes{pod=~"sightedit-backend-.*"}) * 100
+
+  # Scale based on API response time
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: api_response_time_p95
+      threshold: '1000'  # 1000ms
+      query: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="sightedit-backend"}[5m])) by (le)) * 1000
+
+  # Scale based on database connections
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: db_connections_usage_percentage
+      threshold: '70'
+      query: sum(pg_stat_database_numbackends{datname="sightedit"}) / sum(pg_settings_max_connections) * 100
+
+  # Scale based on Redis memory usage
+  - type: redis
+    metadata:
+      address: redis-primary.sightedit.svc.cluster.local:6379
+      usernameFromEnv: REDIS_USERNAME
+      passwordFromEnv: REDIS_PASSWORD
+      listName: task_queue
+      listLength: '10'
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: sightedit-cdn-scaler
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: cdn
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    name: sightedit-cdn
+  pollingInterval: 15  # CDN should scale faster
+  cooldownPeriod: 120
+  minReplicaCount: 2
+  maxReplicaCount: 20
+  
+  triggers:
+  # Scale based on HTTP requests per second for CDN
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: cdn_requests_per_second
+      threshold: '500'
+      query: sum(rate(nginx_http_requests_total{job="sightedit-cdn"}[1m]))
+
+  # Scale based on network throughput
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: network_bytes_per_second
+      threshold: '100000000'  # 100MB/s
+      query: sum(rate(container_network_transmit_bytes_total{pod=~"sightedit-cdn-.*"}[2m]))
+
+  # Scale based on CPU usage (CDN is CPU intensive for compression)
+  - type: prometheus
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: cdn_cpu_usage_percentage  
+      threshold: '60'
+      query: sum(rate(container_cpu_usage_seconds_total{pod=~"sightedit-cdn-.*"}[2m])) / sum(container_spec_cpu_quota{pod=~"sightedit-cdn-.*"} / container_spec_cpu_period{pod=~"sightedit-cdn-.*"}) * 100
+
+---
+apiVersion: keda.sh/v1alpha1  
+kind: ScaledObject
+metadata:
+  name: sightedit-worker-scaler
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    name: sightedit-worker
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  
+  triggers:
+  # Scale based on job queue length
+  - type: redis
+    metadata:
+      address: redis-primary.sightedit.svc.cluster.local:6379
+      usernameFromEnv: REDIS_USERNAME  
+      passwordFromEnv: REDIS_PASSWORD
+      listName: job_queue
+      listLength: '5'
+
+  # Scale based on scheduled jobs
+  - type: cron
+    metadata:
+      timezone: UTC
+      start: '0 8 * * *'    # Scale up at 8 AM UTC
+      end: '0 20 * * *'     # Scale down at 8 PM UTC
+      desiredReplicas: '3'
+
+---
+# ================================================================================
+# KEDA ScaledJob for Batch Processing
+# ================================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: sightedit-image-processor
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: batch-processor
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  jobTargetRef:
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/name: sightedit
+          app.kubernetes.io/component: image-processor
+      spec:
+        template:
+          spec:
+            containers:
+            - name: image-processor
+              image: sightedit/image-processor:latest
+              env:
+              - name: REDIS_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: redis-connection
+                    key: REDIS_URL
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi" 
+                  cpu: "500m"
+            restartPolicy: Never
+        backoffLimit: 3
+  pollingInterval: 30
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  maxReplicaCount: 5
+  scalingStrategy:
+    strategy: "default"
+    
+  triggers:
+  # Process image queue
+  - type: redis
+    metadata:
+      address: redis-primary.sightedit.svc.cluster.local:6379
+      usernameFromEnv: REDIS_USERNAME
+      passwordFromEnv: REDIS_PASSWORD
+      listName: image_processing_queue
+      listLength: '1'
+
+---
+# ================================================================================
+# KEDA TriggerAuthentication for Secure Credentials
+# ================================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: redis-trigger-auth
+  namespace: sightedit
+spec:
+  secretTargetRef:
+  - parameter: password
+    name: redis-auth
+    key: password
+  - parameter: username
+    name: redis-auth  
+    key: username
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: prometheus-trigger-auth
+  namespace: sightedit
+spec:
+  secretTargetRef:
+  - parameter: bearerToken
+    name: prometheus-auth
+    key: token
+
+---
+# ================================================================================
+# Advanced Scaling Configuration with Custom Metrics
+# ================================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: sightedit-advanced-scaler
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: advanced-backend
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  scaleTargetRef:
+    name: sightedit-backend
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Percent
+            value: 10
+            periodSeconds: 60
+          - type: Pods
+            value: 2
+            periodSeconds: 60
+          selectPolicy: Min
+        scaleUp:
+          stabilizationWindowSeconds: 60
+          policies:
+          - type: Percent
+            value: 50
+            periodSeconds: 60
+          - type: Pods
+            value: 5
+            periodSeconds: 60
+          selectPolicy: Max
+  
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 2
+  maxReplicaCount: 100
+  
+  triggers:
+  # Multi-metric scaling with weights
+  - type: prometheus
+    authenticationRef:
+      name: prometheus-trigger-auth
+    metadata:
+      serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+      metricName: composite_load_score
+      threshold: '0.7'
+      # Custom query combining multiple metrics
+      query: |
+        (
+          (sum(rate(http_requests_total{job="sightedit-backend"}[2m])) / 1000) * 0.4 +
+          (sum(rate(container_cpu_usage_seconds_total{pod=~"sightedit-backend-.*"}[2m])) / sum(container_spec_cpu_quota{pod=~"sightedit-backend-.*"} / container_spec_cpu_period{pod=~"sightedit-backend-.*"})) * 0.3 +
+          (sum(container_memory_working_set_bytes{pod=~"sightedit-backend-.*"}) / sum(container_spec_memory_limit_bytes{pod=~"sightedit-backend-.*"})) * 0.2 +
+          (histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="sightedit-backend"}[5m])) by (le))) * 0.1
+        )
+
+  # Business hours scaling
+  - type: cron
+    metadata:
+      timezone: UTC
+      start: '0 7 * * 1-5'    # Business hours start (Mon-Fri 7 AM UTC)
+      end: '0 19 * * 1-5'     # Business hours end (Mon-Fri 7 PM UTC)
+      desiredReplicas: '5'    # Higher baseline during business hours
+
+  # External metrics from custom API
+  - type: external
+    metadata:
+      scalerAddress: custom-metrics-api.sightedit.svc.cluster.local:8080
+      metricName: user_activity_score
+      threshold: '0.6'
+      authModes: "bearer"
+    authenticationRef:
+      name: custom-metrics-auth
+
+---
+# ================================================================================
+# Cluster-wide Resource Management
+# ================================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: ClusterTriggerAuthentication
+metadata:
+  name: global-prometheus-auth
+spec:
+  secretTargetRef:
+  - parameter: bearerToken
+    name: prometheus-token
+    key: token
+    namespace: monitoring
+
+---
+# Example of namespace-wide scaling policy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keda-scaling-policy
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+data:
+  policy.yaml: |
+    scaling_rules:
+      - name: "emergency_scale_up"
+        condition: "error_rate > 0.05"  # 5% error rate
+        action: "scale_up"
+        factor: 2
+        max_replicas: 20
+        
+      - name: "cost_optimization"
+        condition: "time_of_day between 22:00 and 06:00 AND day_of_week in ['saturday', 'sunday']"
+        action: "scale_down"
+        min_replicas: 1
+        
+      - name: "predictive_scaling"
+        condition: "predicted_load > current_capacity * 0.8"
+        action: "scale_up"
+        lead_time: "5m"
+        
+    metrics:
+      - name: "response_time_sla"
+        threshold: "500ms"
+        percentile: "p95"
+        
+      - name: "availability_sla"
+        threshold: "99.9%"
+        window: "5m"

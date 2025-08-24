@@ -1,0 +1,334 @@
+# Blue-Green Deployment Strategy using Argo Rollouts
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: sightedit-backend-blue-green
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 5
+  strategy:
+    blueGreen:
+      # Active service (blue)
+      activeService: sightedit-backend-active
+      
+      # Preview service (green)
+      previewService: sightedit-backend-preview
+      
+      # Auto-promotion configuration
+      autoPromotionEnabled: false  # Manual approval required
+      
+      # Scale down delay after promotion
+      scaleDownDelaySeconds: 300  # 5 minutes
+      
+      # Preview replica count
+      previewReplicaCount: 3  # Fewer replicas for green environment
+      
+      # Analysis for validation
+      prePromotionAnalysis:
+        templates:
+        - templateName: blue-green-analysis
+        args:
+        - name: service-name
+          value: sightedit-backend-preview
+      
+      # Post-promotion analysis
+      postPromotionAnalysis:
+        templates:
+        - templateName: blue-green-post-analysis
+        args:
+        - name: service-name
+          value: sightedit-backend-active
+      
+      # Anti-affinity settings
+      antiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution: {}
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - sightedit-backend
+            topologyKey: kubernetes.io/hostname
+  
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend
+  
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sightedit
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: sightedit-backend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: backend
+        image: ghcr.io/sightedit/sightedit:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-connection
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-connection
+              key: REDIS_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: sightedit-secrets
+              key: JWT_SECRET
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+
+---
+# Active Service (Blue)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sightedit-backend-active
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: backend
+    service-type: active
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+
+---
+# Preview Service (Green)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sightedit-backend-preview
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: backend
+    service-type: preview
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 3000
+    targetPort: http
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+
+---
+# Pre-promotion Analysis Template
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: blue-green-analysis
+  namespace: sightedit
+spec:
+  args:
+  - name: service-name
+  
+  metrics:
+  # Health check
+  - name: health-check
+    interval: 30s
+    count: 5
+    successCondition: result[0] == 1
+    failureLimit: 2
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          up{service="{{.args.service-name}}"}
+  
+  # Response time check
+  - name: response-time-check
+    interval: 30s
+    count: 5
+    successCondition: result[0] <= 1.0
+    failureLimit: 2
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{service="{{.args.service-name}}"}[2m])) by (le)
+          )
+  
+  # Memory usage check
+  - name: memory-usage-check
+    interval: 30s
+    count: 3
+    successCondition: result[0] <= 450000000  # 450MB
+    failureLimit: 1
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          avg(container_memory_usage_bytes{pod=~".*{{.args.service-name}}.*"})
+
+---
+# Post-promotion Analysis Template
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: blue-green-post-analysis
+  namespace: sightedit
+spec:
+  args:
+  - name: service-name
+  
+  metrics:
+  # Success rate after promotion
+  - name: post-promotion-success-rate
+    interval: 60s
+    count: 10
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          sum(irate(http_requests_total{service="{{.args.service-name}}",status!~"5.*"}[5m])) / 
+          sum(irate(http_requests_total{service="{{.args.service-name}}"}[5m]))
+  
+  # Error rate monitoring
+  - name: post-promotion-error-rate
+    interval: 60s
+    count: 10
+    successCondition: result[0] <= 0.02
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server:9090
+        query: |
+          sum(irate(http_requests_total{service="{{.args.service-name}}",status=~"5.*"}[5m])) / 
+          sum(irate(http_requests_total{service="{{.args.service-name}}"}[5m]))
+
+---
+# Ingress for Preview Environment (Green)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sightedit-preview-ingress
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/component: preview-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT:certificate/CERTIFICATE-ID
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/inbound-cidrs: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+spec:
+  tls:
+  - hosts:
+    - preview.sightedit.internal
+    secretName: sightedit-tls
+  
+  rules:
+  - host: preview.sightedit.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: sightedit-backend-preview
+            port:
+              number: 3000

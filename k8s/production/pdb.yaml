@@ -1,0 +1,103 @@
+# ================================================================================
+# Pod Disruption Budget (PDB) Configuration for SightEdit
+# Ensures service availability during voluntary disruptions (e.g., node upgrades)
+# ================================================================================
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sightedit-backend-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  minAvailable: 2  # Always keep at least 2 backend pods running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sightedit-cdn-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: cdn
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  minAvailable: 1  # Always keep at least 1 CDN pod running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: cdn
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sightedit-website-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: website
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  minAvailable: 50%  # Keep at least half of website pods running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: website
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-primary-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  minAvailable: 1  # Database must always have at least 1 pod
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/component: primary
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  minAvailable: 1  # Cache must always have at least 1 pod
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: primary
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: monitoring-pdb
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  maxUnavailable: 1  # Allow one monitoring component to be down at a time
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: monitoring

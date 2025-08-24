@@ -1,0 +1,49 @@
+{
+  "source": {
+    "include": ["src"],
+    "includePattern": ".+\\.ts$",
+    "excludePattern": "(node_modules|dist|test)"
+  },
+  "opts": {
+    "destination": "./docs/api",
+    "recurse": true,
+    "readme": "./README.md",
+    "template": "node_modules/docdash"
+  },
+  "plugins": [
+    "plugins/markdown",
+    "node_modules/jsdoc-plugin-typescript"
+  ],
+  "templates": {
+    "cleverLinks": true,
+    "monospaceLinks": true,
+    "default": {
+      "outputSourceFiles": true,
+      "includeDate": false,
+      "useLongnameInNav": false
+    },
+    "better-docs": {
+      "name": "SightEdit Core API",
+      "title": "SightEdit Core API Documentation",
+      "css": "style.css",
+      "trackingCode": "",
+      "hideGenerator": false,
+      "navLinks": [
+        {
+          "label": "GitHub",
+          "href": "https://github.com/sightedit/sightedit"
+        },
+        {
+          "label": "NPM",
+          "href": "https://www.npmjs.com/package/@sightedit/core"
+        }
+      ]
+    }
+  },
+  "markdown": {
+    "idInHeadings": true
+  },
+  "typescript": {
+    "moduleRoot": "src"
+  }
+}

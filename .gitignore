@@ -1,0 +1,344 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Production builds
+dist/
+build/
+*.min.js
+*.min.css
+*.map
+.output/
+
+# Testing
+coverage/
+.nyc_output
+test-results/
+playwright-report/
+playwright/.cache/
+e2e/test-results/
+e2e/playwright-report/
+e2e/visual-regression/screenshots/
+e2e/visual-regression/diff/
+*.test.js
+*.spec.js
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.Trash-*
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.code-workspace
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+!.env.example
+
+# Temporary files
+.cache/
+.temp/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# Build tools
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vercel
+*.tsbuildinfo
+.turbo/
+.rollup.cache/
+.webpack/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+data/
+
+# Uploads and user content
+uploads/
+public/uploads/
+content/
+user-content/
+
+# Monitoring and logs
+monitoring/grafana/data/
+monitoring/prometheus/data/
+monitoring/loki/data/
+monitoring/alertmanager/data/
+
+# Docker
+docker/volumes/
+.dockerignore
+
+# Kubernetes
+k8s/secrets/
+*.secret.yaml
+*.secret.yml
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfplan
+terraform/*.tfvars
+!terraform/*.tfvars.example
+
+# Backup files
+*.backup
+*.bak
+*.old
+backups/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+ssl/
+certs/
+!ssl/.gitkeep
+!certs/.gitkeep
+
+# Generated documentation
+docs/generated/
+api-docs/
+
+# Performance reports
+performance-reports/
+lighthouse-reports/
+
+# Security audit reports
+security-reports/
+audit-reports/
+*.audit.json
+*SECURITY*.json
+*SECURITY*.md
+!SECURITY.md
+
+# CI/CD
+.github/workflows/temp/
+.gitlab/artifacts/
+
+# Misc
+.history/
+.vscode-test/
+*.orig
+.grunt/
+bower_components/
+
+# Package manager directories
+.npm/
+.yarn/
+.pnpm-store/
+
+# Output from various tools
+storybook-static/
+.docusaurus/
+.cache-loader/
+
+# Mac specific
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows specific
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sln.ide/
+
+# Project specific ignores
+examples/*/node_modules/
+examples/*/dist/
+examples/*/build/
+examples/*/.next/
+examples/*/.nuxt/
+packages/*/dist/
+packages/*/build/
+packages/*/node_modules/
+packages/*/coverage/
+packages/server/*/uploads/
+website/dist/
+website/.vite/
+
+# Ignore compiled plugins
+packages/plugin-*/lib/
+packages/plugin-*/dist/
+packages/plugin-*/*.js
+packages/plugin-*/*.d.ts
+packages/plugin-*/*.map
+!packages/plugin-*/src/**/*
+
+# Integration test artifacts
+integration-tests/results/
+integration-tests/screenshots/
+integration-tests/videos/
+
+# E2E test artifacts  
+e2e/downloads/
+e2e/screenshots/
+e2e/videos/
+e2e/traces/
+e2e/fixtures/uploads/
+
+# Monitoring data
+monitoring/data/
+monitoring/*/data/
+
+# Scripts output
+scripts/output/
+scripts/logs/
+scripts/temp/
+
+# Development databases
+*.local.db
+*.dev.db
+dev-data/
+
+# Personal notes and drafts
+NOTES.md
+TODO.md
+DRAFT*.md
+personal/
+notes/
+
+# Archive and old files
+archive/
+old/
+deprecated/
+
+# Large files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.dmg
+*.iso
+*.jar
+*.war
+
+# Video and audio files
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.mp3
+*.wav
+*.flac
+
+# Ignore everything in root except specific files
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/CONTRIBUTING.md
+!/SECURITY.md
+!/CHANGELOG.md
+!/package.json
+!/package-lock.json
+!/lerna.json
+!/tsconfig.json
+!/tsconfig.base.json
+!/jest.config.base.js
+!/jest.setup.js
+!/Dockerfile
+!/Dockerfile.dev
+!/docker-compose.yml
+!/docker-compose.dev.yml
+!/.github/
+!/packages/
+!/examples/
+!/docs/
+!/website/
+!/scripts/
+!/docker/
+!/k8s/
+!/terraform/
+!/monitoring/
+!/e2e/
+!/integration-tests/

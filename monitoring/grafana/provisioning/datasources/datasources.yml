@@ -1,0 +1,157 @@
+# Grafana Datasources Configuration
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Main metrics source
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://prometheus:9090
+    access: proxy
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "POST"
+      manageAlerts: true
+      alertmanagerUid: "alertmanager"
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+          urlDisplayLabel: "View in Jaeger"
+    secureJsonData: {}
+
+  # Loki - Log aggregation
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
+    access: proxy
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: "trace_id"
+          label: "trace_id"
+          url: "$${__value.raw}"
+          datasourceUid: jaeger
+          matcherRegex: "trace_id=(\\w+)"
+        - name: "user_id"
+          label: "user_id"
+          url: ""
+          matcherRegex: "user_id=(\\w+)"
+
+  # Jaeger - Distributed tracing
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger
+    url: http://jaeger:16686
+    access: proxy
+    editable: true
+    jsonData:
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "1h"
+        spanEndTimeShift: "-1h"
+        tags:
+          - key: "service.name"
+            value: "service"
+          - key: "operation"
+            value: "operation"
+        queries:
+          - name: "Sample query"
+            query: 'sum(rate(traces_service_graph_request_total{service="$${__tags.service.name}"}[5m]))'
+      tracesToLogs:
+        datasourceUid: loki
+        tags:
+          - "trace_id"
+        mappedTags:
+          - key: "service.name"
+            value: "service"
+        mapTagNamesEnabled: true
+        spanStartTimeShift: "1h"
+        spanEndTimeShift: "-1h"
+        filterByTraceID: true
+        filterBySpanID: false
+      nodeGraph:
+        enabled: true
+
+  # Alertmanager
+  - name: Alertmanager
+    type: alertmanager
+    uid: alertmanager
+    url: http://alertmanager:9093
+    access: proxy
+    editable: true
+    jsonData:
+      implementation: "prometheus"
+
+  # Elasticsearch - Log search and analysis
+  - name: Elasticsearch
+    type: elasticsearch
+    uid: elasticsearch
+    url: http://elasticsearch:9200
+    access: proxy
+    database: "logstash-*"
+    editable: true
+    jsonData:
+      interval: "Daily"
+      timeField: "@timestamp"
+      esVersion: "8.0.0"
+      includeFrozen: false
+      logMessageField: "message"
+      logLevelField: "level"
+      maxConcurrentShardRequests: 5
+
+  # InfluxDB - Time series (if using for metrics)
+  - name: InfluxDB
+    type: influxdb
+    uid: influxdb
+    url: http://influxdb:8086
+    access: proxy
+    database: "sightedit"
+    user: "grafana"
+    editable: true
+    jsonData:
+      version: "Flux"
+      organization: "sightedit"
+      defaultBucket: "metrics"
+      tlsSkipVerify: true
+    secureJsonData:
+      token: "YOUR_INFLUXDB_TOKEN"
+
+  # CloudWatch (if using AWS)
+  - name: CloudWatch
+    type: cloudwatch
+    uid: cloudwatch
+    jsonData:
+      authType: "keys"
+      defaultRegion: "us-east-1"
+      customMetricsNamespaces: "SightEdit/Application,SightEdit/Business"
+    secureJsonData:
+      accessKey: "YOUR_AWS_ACCESS_KEY"
+      secretKey: "YOUR_AWS_SECRET_KEY"
+
+  # Datadog (if using Datadog)
+  - name: Datadog
+    type: grafana-datadog-datasource
+    uid: datadog
+    url: https://api.datadoghq.com
+    jsonData:
+      site: "datadoghq.com"
+    secureJsonData:
+      apiKey: "YOUR_DATADOG_API_KEY"
+      appKey: "YOUR_DATADOG_APP_KEY"
+
+  # New Relic (if using New Relic)
+  - name: New Relic
+    type: newrelic-newrelic-datasource
+    uid: newrelic
+    jsonData:
+      accountId: YOUR_NEW_RELIC_ACCOUNT_ID
+    secureJsonData:
+      apiKey: "YOUR_NEW_RELIC_API_KEY"
+
+deleteDatasources: []

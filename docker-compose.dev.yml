@@ -1,0 +1,113 @@
+version: '3.8'
+
+# Development-focused compose file
+services:
+  # Development environment with hot reload
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: sightedit-dev
+    ports:
+      - "3000:3000"   # Backend API
+      - "5173:5173"   # Vite dev server
+      - "8080:8080"   # Documentation site
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages/*/node_modules
+      - /app/website/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - FORCE_COLOR=1
+      - DEBUG=sightedit:*
+      - DATABASE_URL=postgresql://sightedit:password@postgres:5432/sightedit_dev
+      - REDIS_URL=redis://redis:6379/1
+      - JWT_SECRET=dev-secret-key
+      - CORS_ORIGIN=http://localhost:5173,http://localhost:8080
+    networks:
+      - sightedit-dev
+    depends_on:
+      - postgres-dev
+      - redis-dev
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+  # PostgreSQL for development
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: sightedit-postgres-dev
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    environment:
+      - POSTGRES_DB=sightedit_dev
+      - POSTGRES_USER=sightedit
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-dev.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sightedit-dev
+
+  # Redis for development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: sightedit-redis-dev
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - sightedit-dev
+
+  # Mailhog for email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: sightedit-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - sightedit-dev
+
+  # Webhook.site local alternative for testing webhooks
+  webhook-tester:
+    image: tarampampam/webhook-tester:latest
+    container_name: sightedit-webhook-tester
+    ports:
+      - "8090:8080"
+    environment:
+      - LISTEN_PORT=8080
+    networks:
+      - sightedit-dev
+
+  # Test database for integration tests
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: sightedit-postgres-test
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_DB=sightedit_test
+      - POSTGRES_USER=sightedit
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./docker/postgres/init-test.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sightedit-dev
+    tmpfs:
+      - /var/lib/postgresql/data  # Use tmpfs for faster test database
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  sightedit-dev:
+    driver: bridge

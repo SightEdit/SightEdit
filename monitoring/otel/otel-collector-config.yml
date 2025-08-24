@@ -1,0 +1,323 @@
+# OpenTelemetry Collector Configuration for SightEdit
+
+receivers:
+  # OTLP receiver for traces, metrics, and logs
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+  
+  # Prometheus receiver for scraping metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['0.0.0.0:8888']
+  
+  # Host metrics receiver
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      disk: {}
+      filesystem: {}
+      load: {}
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network: {}
+      paging: {}
+      processes: {}
+  
+  # Docker stats receiver
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+    timeout: 20s
+    api_version: 1.24
+    metrics:
+      container.cpu.usage.total:
+        enabled: true
+      container.memory.usage.total:
+        enabled: true
+      container.network.io.usage.rx_bytes:
+        enabled: true
+      container.network.io.usage.tx_bytes:
+        enabled: true
+  
+  # Jaeger receiver (for legacy Jaeger traces)
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+      thrift_compact:
+        endpoint: 0.0.0.0:6831
+      thrift_binary:
+        endpoint: 0.0.0.0:6832
+  
+  # Zipkin receiver
+  zipkin:
+    endpoint: 0.0.0.0:9411
+  
+  # Log receiver for application logs
+  filelog:
+    include:
+      - /var/log/sightedit/*.log
+      - /var/log/containers/*sightedit*.log
+    exclude:
+      - /var/log/containers/*test*.log
+    operators:
+      - type: json_parser
+        id: parse_body
+        parse_from: attributes.log
+        parse_to: body
+      - type: time_parser
+        id: parse_time
+        parse_from: attributes.time
+        layout: '2006-01-02T15:04:05.000Z'
+      - type: severity_parser
+        id: parse_severity
+        parse_from: attributes.level
+        preset: default
+
+processors:
+  # Batch processor for performance
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+  
+  # Memory limiter processor
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+  
+  # Resource processor to add metadata
+  resource:
+    attributes:
+      - key: environment
+        value: production
+        action: upsert
+      - key: service.namespace
+        value: sightedit
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+  
+  # Attributes processor for trace/metric enrichment
+  attributes:
+    actions:
+      - key: http.user_agent
+        action: delete
+      - key: http.request.header.authorization
+        action: delete
+      - key: sensitive_data
+        action: delete
+      - key: user.id
+        from_attribute: user_id
+        action: upsert
+  
+  # Span processor for trace sampling and filtering
+  span:
+    name:
+      # Rename spans
+      to_attributes:
+        rules:
+          - pattern: ^(.*)$
+            name_pattern: "sightedit.$1"
+    include:
+      match_type: regexp
+      span_names:
+        - ".*"
+    exclude:
+      match_type: strict
+      span_names:
+        - "health_check"
+        - "metrics"
+  
+  # Tail sampling processor
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: error_sampling
+        type: status_code
+        status_code: {status_codes: [ERROR]}
+      - name: latency_sampling
+        type: latency
+        latency: {threshold_ms: 1000}
+      - name: probabilistic_sampling
+        type: probabilistic
+        probabilistic: {sampling_percentage: 10}
+      - name: rate_limiting
+        type: rate_limiting
+        rate_limiting: {spans_per_second: 1000}
+  
+  # Transform processor for metrics
+  transform/metrics:
+    metric_statements:
+      - context: metric
+        statements:
+          - set(description, "SightEdit business metric") where name == "sightedit_editor_usage"
+          - set(unit, "1") where name == "sightedit_editor_usage"
+  
+  # Filter processor
+  filter:
+    metrics:
+      exclude:
+        match_type: regexp
+        metric_names:
+          - ".*grpc_io.*"
+          - ".*_bucket$"
+    traces:
+      exclude:
+        match_type: strict
+        span_names:
+          - "health_check"
+
+exporters:
+  # Prometheus exporter
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: sightedit
+    const_labels:
+      service: otel-collector
+      environment: production
+    send_timestamps: true
+    metric_expiration: 180m
+    enable_open_metrics: true
+  
+  # Jaeger exporter
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+    timeout: 30s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 300s
+  
+  # Loki exporter for logs
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    timeout: 30s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    labels:
+      attributes:
+        service.name: "service_name"
+        service.version: "service_version"
+        level: "level"
+      resource:
+        container.name: "container_name"
+        k8s.pod.name: "pod_name"
+  
+  # Logging exporter for debugging
+  logging:
+    loglevel: info
+    sampling_initial: 2
+    sampling_thereafter: 500
+  
+  # OTLP exporter for external services
+  otlp/datadog:
+    endpoint: https://api.datadoghq.com:443
+    headers:
+      DD-API-KEY: "${DATADOG_API_KEY}"
+    tls:
+      insecure: false
+  
+  otlp/newrelic:
+    endpoint: https://otlp.nr-data.net:4317
+    headers:
+      api-key: "${NEW_RELIC_API_KEY}"
+    tls:
+      insecure: false
+
+extensions:
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: /health
+  
+  # pprof extension for debugging
+  pprof:
+    endpoint: 0.0.0.0:1888
+  
+  # zpages extension for live debugging
+  zpages:
+    endpoint: 0.0.0.0:55679
+  
+  # File storage extension
+  file_storage:
+    directory: /tmp/otel_storage
+
+service:
+  extensions:
+    - health_check
+    - pprof
+    - zpages
+    - file_storage
+  
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp, jaeger, zipkin]
+      processors: 
+        - memory_limiter
+        - batch
+        - resource
+        - attributes
+        - span
+        - tail_sampling
+        - filter
+      exporters: [jaeger, logging]
+    
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics, docker_stats]
+      processors: 
+        - memory_limiter
+        - batch
+        - resource
+        - transform/metrics
+        - filter
+      exporters: [prometheus, logging]
+    
+    # Logs pipeline
+    logs:
+      receivers: [otlp, filelog]
+      processors: 
+        - memory_limiter
+        - batch
+        - resource
+        - attributes
+      exporters: [loki, logging]
+  
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888

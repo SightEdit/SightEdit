@@ -1,0 +1,27 @@
+{
+  "name": "sightedit/server-php",
+  "description": "PHP server handler for SightEdit",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "SightEdit Contributors"
+    }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "SightEdit\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "SightEdit\\Tests\\": "tests/"
+    }
+  }
+}

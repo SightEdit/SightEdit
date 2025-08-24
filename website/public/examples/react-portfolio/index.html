@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit React Portfolio Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@sightedit/core@latest/dist/sightedit.min.js"></script>
+    <style>
+        /* SightEdit edit mode styles */
+        [data-sight-edit-mode="edit"] [data-sight] {
+            outline: 2px dashed #10b981;
+            outline-offset: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:hover {
+            outline-color: #059669;
+            background-color: rgba(16, 185, 129, 0.05);
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:focus {
+            outline-width: 3px;
+            outline-style: solid;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock SightEdit React integration
+        const SightEditProvider = ({ children }) => {
+            return children;
+        };
+
+        const Editable = ({ sight, type = 'text', children, className = '', ...props }) => {
+            const ref = useRef(null);
+
+            useEffect(() => {
+                if (ref.current && window.sightEdit) {
+                    const element = ref.current;
+                    element.setAttribute('data-sight', sight);
+                    element.setAttribute('data-sight-type', type);
+                    window.sightEdit.refresh();
+                }
+            }, [sight, type]);
+
+            return React.cloneElement(children, {
+                ref,
+                className: `${children.props.className || ''} ${className}`,
+                ...props
+            });
+        };
+
+        const Portfolio = () => {
+            const [isEditMode, setIsEditMode] = useState(false);
+
+            useEffect(() => {
+                // Initialize SightEdit
+                window.sightEdit = SightEdit.init({
+                    apiUrl: null,
+                    debug: true,
+                    saveHandler: async (data) => {
+                        console.log('Saving:', data);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return { success: true };
+                    }
+                });
+
+                window.sightEdit.on('editModeEntered', () => setIsEditMode(true));
+                window.sightEdit.on('editModeExited', () => setIsEditMode(false));
+
+                // Keyboard shortcut
+                const handleKeyDown = (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                        e.preventDefault();
+                        window.sightEdit.toggleEditMode();
+                    }
+                };
+
+                document.addEventListener('keydown', handleKeyDown);
+                return () => document.removeEventListener('keydown', handleKeyDown);
+            }, []);
+
+            const toggleEditMode = () => {
+                window.sightEdit.toggleEditMode();
+            };
+
+            return (
+                <SightEditProvider>
+                    <div className="min-h-screen">
+                        {/* Edit Mode Toggle */}
+                        <div className="fixed bottom-4 right-4 z-50">
+                            <button 
+                                onClick={toggleEditMode}
+                                className={`px-4 py-2 rounded-full shadow-lg transition-colors ${
+                                    isEditMode 
+                                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                                        : 'bg-green-600 hover:bg-green-700 text-white'
+                                }`}
+                            >
+                                {isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+                            </button>
+                        </div>
+
+                        {/* Header */}
+                        <header className="gradient-bg text-white">
+                            <div className="container mx-auto px-4 py-20">
+                                <div className="text-center">
+                                    <Editable sight="profile-name" type="text">
+                                        <h1 className="text-5xl font-bold mb-4">Sarah Johnson</h1>
+                                    </Editable>
+                                    <Editable sight="profile-title" type="text">
+                                        <p className="text-2xl opacity-90 mb-6">Full-Stack Developer & UI/UX Designer</p>
+                                    </Editable>
+                                    <Editable sight="profile-bio" type="richtext">
+                                        <p className="text-lg opacity-80 max-w-2xl mx-auto leading-relaxed">
+                                            Passionate about creating beautiful, functional, and user-centered digital experiences. 
+                                            With 8+ years of experience in web development and design.
+                                        </p>
+                                    </Editable>
+                                    <div className="mt-8 space-x-4">
+                                        <a href="#contact" className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                                            Get In Touch
+                                        </a>
+                                        <a href="#projects" className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-purple-600 transition-colors">
+                                            View Work
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        {/* Skills Section */}
+                        <section className="py-16 bg-white">
+                            <div className="container mx-auto px-4">
+                                <div className="text-center mb-12">
+                                    <Editable sight="skills-title" type="text">
+                                        <h2 className="text-3xl font-bold text-gray-900 mb-4">Skills & Expertise</h2>
+                                    </Editable>
+                                    <Editable sight="skills-subtitle" type="text">
+                                        <p className="text-gray-600 text-lg">Technologies and tools I work with</p>
+                                    </Editable>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <div className="text-center p-6 rounded-lg border border-gray-200">
+                                        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <Editable sight="skill1-title" type="text">
+                                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Frontend Development</h3>
+                                        </Editable>
+                                        <Editable sight="skill1-description" type="richtext">
+                                            <p className="text-gray-600">React, Vue, TypeScript, Tailwind CSS, Next.js</p>
+                                        </Editable>
+                                    </div>
+
+                                    <div className="text-center p-6 rounded-lg border border-gray-200">
+                                        <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                            </svg>
+                                        </div>
+                                        <Editable sight="skill2-title" type="text">
+                                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Backend Development</h3>
+                                        </Editable>
+                                        <Editable sight="skill2-description" type="richtext">
+                                            <p className="text-gray-600">Node.js, Python, PostgreSQL, MongoDB, AWS</p>
+                                        </Editable>
+                                    </div>
+
+                                    <div className="text-center p-6 rounded-lg border border-gray-200">
+                                        <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                                                <path fillRule="evenodd" d="M3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <Editable sight="skill3-title" type="text">
+                                            <h3 className="text-xl font-semibold text-gray-900 mb-2">UI/UX Design</h3>
+                                        </Editable>
+                                        <Editable sight="skill3-description" type="richtext">
+                                            <p className="text-gray-600">Figma, Adobe XD, Sketch, Prototyping, User Research</p>
+                                        </Editable>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Projects Section */}
+                        <section id="projects" className="py-16 bg-gray-50">
+                            <div className="container mx-auto px-4">
+                                <div className="text-center mb-12">
+                                    <Editable sight="projects-title" type="text">
+                                        <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Projects</h2>
+                                    </Editable>
+                                    <Editable sight="projects-subtitle" type="text">
+                                        <p className="text-gray-600 text-lg">Some of my recent work</p>
+                                    </Editable>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {/* Project 1 */}
+                                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                                        <Editable sight="project1-image" type="image">
+                                            <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=250&fit=crop" 
+                                                 alt="Project 1" className="w-full h-48 object-cover" />
+                                        </Editable>
+                                        <div className="p-6">
+                                            <Editable sight="project1-title" type="text">
+                                                <h3 className="text-xl font-semibold text-gray-900 mb-2">E-commerce Platform</h3>
+                                            </Editable>
+                                            <Editable sight="project1-description" type="richtext">
+                                                <p className="text-gray-600 mb-4">A modern e-commerce platform with React, TypeScript, and Stripe integration.</p>
+                                            </Editable>
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">React</span>
+                                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">TypeScript</span>
+                                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">Stripe</span>
+                                            </div>
+                                            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">View Project →</a>
+                                        </div>
+                                    </div>
+
+                                    {/* Project 2 */}
+                                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                                        <Editable sight="project2-image" type="image">
+                                            <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=250&fit=crop" 
+                                                 alt="Project 2" className="w-full h-48 object-cover" />
+                                        </Editable>
+                                        <div className="p-6">
+                                            <Editable sight="project2-title" type="text">
+                                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Task Management App</h3>
+                                            </Editable>
+                                            <Editable sight="project2-description" type="richtext">
+                                                <p className="text-gray-600 mb-4">A collaborative task management application with real-time updates.</p>
+                                            </Editable>
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Vue.js</span>
+                                                <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Socket.io</span>
+                                                <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Node.js</span>
+                                            </div>
+                                            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">View Project →</a>
+                                        </div>
+                                    </div>
+
+                                    {/* Project 3 */}
+                                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                                        <Editable sight="project3-image" type="image">
+                                            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop" 
+                                                 alt="Project 3" className="w-full h-48 object-cover" />
+                                        </Editable>
+                                        <div className="p-6">
+                                            <Editable sight="project3-title" type="text">
+                                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Analytics Dashboard</h3>
+                                            </Editable>
+                                            <Editable sight="project3-description" type="richtext">
+                                                <p className="text-gray-600 mb-4">Real-time analytics dashboard with data visualization and reporting.</p>
+                                            </Editable>
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">React</span>
+                                                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">D3.js</span>
+                                                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">Python</span>
+                                            </div>
+                                            <a href="#" className="text-purple-600 hover:text-purple-700 font-medium">View Project →</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Contact Section */}
+                        <section id="contact" className="py-16 bg-white">
+                            <div className="container mx-auto px-4 text-center">
+                                <Editable sight="contact-title" type="text">
+                                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Let's Work Together</h2>
+                                </Editable>
+                                <Editable sight="contact-description" type="richtext">
+                                    <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
+                                        Have a project in mind? I'd love to hear about it. Let's discuss how we can bring your ideas to life.
+                                    </p>
+                                </Editable>
+                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <a href="mailto:sarah@example.com" className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                                        Email Me
+                                    </a>
+                                    <a href="#" className="border-2 border-purple-600 text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-purple-600 hover:text-white transition-colors">
+                                        Download Resume
+                                    </a>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </SightEditProvider>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Portfolio />);
+
+        console.log('🎉 SightEdit React Portfolio Demo loaded!');
+        console.log('💡 Press Ctrl/Cmd + E or click the button to toggle edit mode');
+        console.log('✨ Click on any green outlined element to edit content');
+    </script>
+</body>
+</html>

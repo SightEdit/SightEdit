@@ -1,0 +1,303 @@
+# Promtail Configuration for SightEdit Log Collection
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # SightEdit Application Logs
+  - job_name: sightedit-application
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sightedit-application
+          environment: production
+          service: sightedit-core
+          __path__: /var/log/sightedit/*.log
+    
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            component: component
+            user_id: user_id
+            session_id: session_id
+            trace_id: trace_id
+            span_id: span_id
+            error: error
+            duration: duration
+            
+      # Extract timestamp
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z"
+          
+      # Set log level
+      - labels:
+          level: level
+          component: component
+          service: service
+          
+      # Add business context labels
+      - labels:
+          user_id: user_id
+          session_id: session_id
+          
+      # Add tracing correlation
+      - labels:
+          trace_id: trace_id
+          span_id: span_id
+          
+      # Filter sensitive data
+      - replace:
+          expression: '(?i)(password|token|key|secret|credit_card|ssn)[\s]*[:=][\s]*[^\s,}]+'
+          replace: '$1: [REDACTED]'
+          
+      # Multiline parsing for stack traces
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}'
+          max_wait_time: 3s
+
+  # Docker Container Logs
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+            
+    relabel_configs:
+      # Add container name
+      - source_labels: ['__meta_docker_container_name']
+        target_label: 'container_name'
+        
+      # Add service name from label
+      - source_labels: ['__meta_docker_container_label_service_name']
+        target_label: 'service'
+        
+      # Add environment from label
+      - source_labels: ['__meta_docker_container_label_environment']
+        target_label: 'environment'
+        
+      # Set log path
+      - source_labels: ['__meta_docker_container_id']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/*-json.log'
+        
+    pipeline_stages:
+      # Parse Docker JSON format
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            timestamp: time
+            
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000000000Z"
+          
+      - output:
+          source: output
+
+  # System Logs
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          environment: production
+          __path__: /var/log/syslog
+          
+    pipeline_stages:
+      # Parse syslog format
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<service>\S+?):\s*(?P<message>.*)'
+          
+      - timestamp:
+          source: timestamp
+          format: "Jan 2 15:04:05"
+          
+      - labels:
+          hostname: hostname
+          service: service
+
+  # Nginx Access Logs
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-access
+          service: nginx
+          environment: production
+          __path__: /var/log/nginx/access.log
+          
+    pipeline_stages:
+      # Parse nginx access log format
+      - regex:
+          expression: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<timestamp>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)" (?P<request_time>\S+)'
+          
+      - timestamp:
+          source: timestamp
+          format: "02/Jan/2006:15:04:05 -0700"
+          
+      - labels:
+          method: method
+          status: status
+          path: path
+          
+      # Convert metrics to numbers
+      - metrics:
+          http_requests_total:
+            type: Counter
+            description: "Total HTTP requests"
+            source: status
+            config:
+              value: '1'
+              action: inc
+
+  # Nginx Error Logs  
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-error
+          service: nginx
+          environment: production
+          __path__: /var/log/nginx/error.log
+          
+    pipeline_stages:
+      # Parse nginx error log format
+      - regex:
+          expression: '^(?P<timestamp>\d+/\d+/\d+ \d+:\d+:\d+) \[(?P<level>\w+)\] (?P<pid>\d+)#(?P<tid>\d+): (?P<message>.*)'
+          
+      - timestamp:
+          source: timestamp
+          format: "2006/01/02 15:04:05"
+          
+      - labels:
+          level: level
+          pid: pid
+
+  # Application Metrics Logs
+  - job_name: sightedit-metrics
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: sightedit-metrics
+          service: sightedit-core
+          environment: production
+          __path__: /var/log/sightedit/metrics.log
+          
+    pipeline_stages:
+      # Parse structured metrics logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            metric_name: metric_name
+            metric_value: metric_value
+            metric_type: metric_type
+            labels: labels
+            component: component
+            
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z"
+          
+      - labels:
+          metric_name: metric_name
+          metric_type: metric_type
+          component: component
+
+  # Security Audit Logs
+  - job_name: security-audit
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: security-audit
+          service: sightedit-security
+          environment: production
+          log_type: security
+          __path__: /var/log/sightedit/security.log
+          
+    pipeline_stages:
+      # Parse security logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            event_type: event_type
+            user_id: user_id
+            source_ip: source_ip
+            user_agent: user_agent
+            action: action
+            resource: resource
+            result: result
+            risk_level: risk_level
+            
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z"
+          
+      - labels:
+          event_type: event_type
+          result: result
+          risk_level: risk_level
+
+  # Business Events Logs
+  - job_name: business-events
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: business-events
+          service: sightedit-business
+          environment: production
+          log_type: business
+          __path__: /var/log/sightedit/business.log
+          
+    pipeline_stages:
+      # Parse business event logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            event_name: event_name
+            user_id: user_id
+            session_id: session_id
+            editor_type: editor_type
+            feature: feature
+            value: value
+            metadata: metadata
+            
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z"
+          
+      - labels:
+          event_name: event_name
+          editor_type: editor_type
+          feature: feature
+
+# Global rate limiting
+limits_config:
+  readline_rate: 10000
+  readline_burst: 20000
+
+# Target configuration
+target_config:
+  sync_period: 10s

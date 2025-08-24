@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit Blog Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@sightedit/core@latest/dist/sightedit.min.js"></script>
+    <style>
+        /* SightEdit edit mode styles */
+        [data-sight-edit-mode="edit"] [data-sight] {
+            outline: 2px dashed #3b82f6;
+            outline-offset: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:hover {
+            outline-color: #2563eb;
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:focus {
+            outline-width: 3px;
+            outline-style: solid;
+        }
+
+        /* Loading states */
+        .sight-edit-loading {
+            position: relative;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .sight-edit-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #3b82f6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: sight-edit-spin 0.6s linear infinite;
+        }
+
+        @keyframes sight-edit-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Edit Mode Toggle -->
+    <div id="edit-toggle" class="fixed bottom-4 right-4 z-50">
+        <button id="toggle-btn" class="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+            Enter Edit Mode
+        </button>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 data-sight="site-title" data-sight-type="text" class="text-2xl font-bold text-gray-900">
+                        My Blog
+                    </h1>
+                    <p data-sight="site-subtitle" data-sight-type="text" class="text-gray-600 mt-1">
+                        Sharing thoughts and ideas
+                    </p>
+                </div>
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-gray-600 hover:text-gray-900">Home</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-gray-900">About</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-gray-900">Contact</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <h2 data-sight="hero-title" data-sight-type="text" class="text-4xl font-bold mb-4">
+                Welcome to My Blog
+            </h2>
+            <p data-sight="hero-description" data-sight-type="richtext" class="text-xl opacity-90 max-w-2xl mx-auto">
+                Discover insights, tutorials, and thoughts on web development, design, and technology. 
+                Join me on this journey of learning and sharing knowledge.
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+        <!-- Featured Post -->
+        <article class="bg-white rounded-lg shadow-md overflow-hidden mb-12">
+            <img data-sight="featured-image" data-sight-type="image" 
+                 src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&h=400&fit=crop" 
+                 alt="Featured post" class="w-full h-64 object-cover">
+            <div class="p-8">
+                <div class="flex items-center text-sm text-gray-500 mb-4">
+                    <span data-sight="featured-date" data-sight-type="text">December 15, 2024</span>
+                    <span class="mx-2">•</span>
+                    <span data-sight="featured-author" data-sight-type="text">John Doe</span>
+                    <span class="mx-2">•</span>
+                    <span>5 min read</span>
+                </div>
+                <h3 data-sight="featured-title" data-sight-type="text" class="text-2xl font-bold text-gray-900 mb-4">
+                    Getting Started with SightEdit: A Developer's Guide
+                </h3>
+                <div data-sight="featured-content" data-sight-type="richtext" class="text-gray-700 leading-relaxed mb-6">
+                    <p>SightEdit revolutionizes the way we think about content management. Instead of complex admin panels and disconnected editing experiences, SightEdit allows you to edit content directly on your website where it actually appears.</p>
+                    
+                    <p>In this comprehensive guide, we'll explore how to integrate SightEdit into your projects, understand its core concepts, and build amazing visual editing experiences for your users.</p>
+                </div>
+                <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Read more →</a>
+            </div>
+        </article>
+
+        <!-- Recent Posts -->
+        <section>
+            <h2 data-sight="recent-posts-title" data-sight-type="text" class="text-2xl font-bold text-gray-900 mb-8">
+                Recent Posts
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Post 1 -->
+                <article class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <img data-sight="post1-image" data-sight-type="image" 
+                         src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=200&fit=crop" 
+                         alt="Post 1" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <div class="text-sm text-gray-500 mb-2">
+                            <span data-sight="post1-date" data-sight-type="text">December 10, 2024</span>
+                        </div>
+                        <h3 data-sight="post1-title" data-sight-type="text" class="text-xl font-semibold text-gray-900 mb-3">
+                            Building Modern Web Applications
+                        </h3>
+                        <p data-sight="post1-excerpt" data-sight-type="richtext" class="text-gray-600 text-sm leading-relaxed">
+                            Explore the latest trends and best practices in modern web development, from component-based architectures to performance optimization techniques.
+                        </p>
+                    </div>
+                </article>
+
+                <!-- Post 2 -->
+                <article class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <img data-sight="post2-image" data-sight-type="image" 
+                         src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=400&h=200&fit=crop" 
+                         alt="Post 2" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <div class="text-sm text-gray-500 mb-2">
+                            <span data-sight="post2-date" data-sight-type="text">December 5, 2024</span>
+                        </div>
+                        <h3 data-sight="post2-title" data-sight-type="text" class="text-xl font-semibold text-gray-900 mb-3">
+                            The Future of Content Management
+                        </h3>
+                        <p data-sight="post2-excerpt" data-sight-type="richtext" class="text-gray-600 text-sm leading-relaxed">
+                            How visual editing systems are transforming the way we create and manage content on the web, making it more intuitive and accessible.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">About</h4>
+                    <p data-sight="footer-about" data-sight-type="richtext" class="text-gray-400 text-sm leading-relaxed">
+                        This blog is powered by SightEdit, demonstrating how easy it is to create editable content experiences.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="text-gray-400 hover:text-white">Home</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">About</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Contact</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Privacy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Connect</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white">Twitter</a>
+                        <a href="#" class="text-gray-400 hover:text-white">GitHub</a>
+                        <a href="#" class="text-gray-400 hover:text-white">LinkedIn</a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center">
+                <p data-sight="footer-copyright" data-sight-type="text" class="text-gray-400 text-sm">
+                    © 2024 My Blog. All rights reserved. Powered by SightEdit.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Simple mock backend for demo
+        const mockBackend = {
+            async save(data) {
+                console.log('Saving:', data);
+                // Simulate API delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return { success: true };
+            },
+            
+            async batch(changes) {
+                console.log('Batch saving:', changes);
+                await new Promise(resolve => setTimeout(resolve, 800));
+                return { success: true };
+            }
+        };
+
+        // Initialize SightEdit
+        const sightEdit = SightEdit.init({
+            apiUrl: null, // Using mock backend
+            debug: true,
+            saveHandler: async (data) => {
+                return await mockBackend.save(data);
+            },
+            batchHandler: async (changes) => {
+                return await mockBackend.batch(changes);
+            }
+        });
+
+        // Toggle edit mode functionality
+        const toggleBtn = document.getElementById('toggle-btn');
+        
+        sightEdit.on('editModeEntered', () => {
+            toggleBtn.textContent = 'Exit Edit Mode';
+            toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            toggleBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        });
+        
+        sightEdit.on('editModeExited', () => {
+            toggleBtn.textContent = 'Enter Edit Mode';
+            toggleBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+            toggleBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        });
+        
+        toggleBtn.addEventListener('click', () => {
+            sightEdit.toggleEditMode();
+        });
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                sightEdit.toggleEditMode();
+            }
+        });
+
+        // Demo notification
+        console.log('🎉 SightEdit Blog Demo loaded!');
+        console.log('💡 Press Ctrl/Cmd + E or click the button to toggle edit mode');
+        console.log('✨ Click on any blue outlined element to edit content');
+    </script>
+</body>
+</html>

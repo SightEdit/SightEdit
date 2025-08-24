@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sightedit
+  labels:
+    name: sightedit
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: sightedit
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "SightEdit application namespace"

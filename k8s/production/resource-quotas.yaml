@@ -1,0 +1,203 @@
+# ================================================================================
+# Resource Quotas and Limits for SightEdit Production Environment
+# Ensures fair resource allocation and prevents resource exhaustion
+# ================================================================================
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sightedit-compute-quota
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  hard:
+    # CPU limits
+    requests.cpu: "10"      # Total CPU requests across all pods
+    limits.cpu: "20"        # Total CPU limits across all pods
+    
+    # Memory limits  
+    requests.memory: 16Gi   # Total memory requests across all pods
+    limits.memory: 32Gi     # Total memory limits across all pods
+    
+    # Storage limits
+    requests.storage: 1Ti   # Total storage requests
+    persistentvolumeclaims: "20"
+    
+    # Object counts
+    pods: "100"             # Maximum number of pods
+    services: "20"          # Maximum number of services
+    secrets: "50"           # Maximum number of secrets
+    configmaps: "50"        # Maximum number of configmaps
+    replicationcontrollers: "0"  # Prevent legacy controllers
+    
+    # Load balancer limits
+    services.loadbalancers: "5"
+    services.nodeports: "10"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sightedit-object-quota
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  hard:
+    # Network policies
+    networkpolicies.networking.k8s.io: "20"
+    
+    # Autoscaling
+    horizontalpodautoscalers.autoscaling: "10"
+    verticalpodautoscalers.autoscaling.k8s.io: "10"
+    
+    # Ingress
+    ingresses.networking.k8s.io: "10"
+    
+    # Jobs and CronJobs
+    jobs.batch: "50"
+    cronjobs.batch: "20"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sightedit-container-limits
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  limits:
+  # Default limits for containers
+  - type: Container
+    default:
+      cpu: "500m"
+      memory: "512Mi"
+      ephemeral-storage: "1Gi"
+    defaultRequest:
+      cpu: "100m" 
+      memory: "128Mi"
+      ephemeral-storage: "100Mi"
+    min:
+      cpu: "10m"
+      memory: "32Mi"
+      ephemeral-storage: "10Mi"
+    max:
+      cpu: "4"
+      memory: "8Gi"
+      ephemeral-storage: "10Gi"
+      
+  # Default limits for PVCs
+  - type: PersistentVolumeClaim
+    min:
+      storage: "1Gi"
+    max:
+      storage: "100Gi"
+    default:
+      storage: "10Gi"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sightedit-pod-limits
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+spec:
+  limits:
+  # Pod-level limits
+  - type: Pod
+    min:
+      cpu: "10m"
+      memory: "32Mi"
+    max:
+      cpu: "8"       # Maximum CPU per pod
+      memory: "16Gi"  # Maximum memory per pod
+
+---
+# ================================================================================
+# Priority Classes for Different Workload Types
+# ================================================================================
+
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: sightedit-critical
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+value: 1000
+globalDefault: false
+description: "Critical SightEdit components (database, cache)"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: sightedit-high
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+value: 800
+globalDefault: false
+description: "High priority SightEdit components (backend API)"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: sightedit-medium
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+value: 500
+globalDefault: true
+description: "Medium priority SightEdit components (CDN, website)"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: sightedit-low
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/part-of: sightedit-platform
+value: 200
+globalDefault: false
+description: "Low priority SightEdit components (batch jobs, monitoring)"
+
+---
+# ================================================================================
+# Quality of Service Classes Configuration
+# ================================================================================
+
+# This is implemented through resource requests/limits in deployments
+# Guaranteed QoS: requests == limits for both CPU and memory
+# Burstable QoS: requests < limits or only requests specified
+# BestEffort QoS: no requests or limits specified (not recommended for production)
+
+# Example usage in deployments:
+# 
+# Guaranteed QoS (Critical Database):
+#   resources:
+#     requests:
+#       cpu: "1000m"
+#       memory: "2Gi"
+#     limits:
+#       cpu: "1000m"
+#       memory: "2Gi"
+#
+# Burstable QoS (Web Applications):
+#   resources:
+#     requests:
+#       cpu: "100m"
+#       memory: "256Mi"
+#     limits:
+#       cpu: "500m"
+#       memory: "512Mi"

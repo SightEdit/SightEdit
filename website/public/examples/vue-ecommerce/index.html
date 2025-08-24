@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit Vue E-commerce Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@sightedit/core@latest/dist/sightedit.min.js"></script>
+    <style>
+        /* SightEdit edit mode styles */
+        [data-sight-edit-mode="edit"] [data-sight] {
+            outline: 2px dashed #f59e0b;
+            outline-offset: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:hover {
+            outline-color: #d97706;
+            background-color: rgba(245, 158, 11, 0.05);
+        }
+
+        [data-sight-edit-mode="edit"] [data-sight]:focus {
+            outline-width: 3px;
+            outline-style: solid;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                const isEditMode = ref(false);
+                const selectedCategory = ref('all');
+                const cartCount = ref(0);
+                const searchQuery = ref('');
+
+                const products = ref([
+                    {
+                        id: 1,
+                        name: 'Premium Wireless Headphones',
+                        price: '$299.99',
+                        originalPrice: '$399.99',
+                        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop',
+                        category: 'electronics',
+                        badge: 'Sale',
+                        rating: 4.5,
+                        reviews: 128
+                    },
+                    {
+                        id: 2,
+                        name: 'Minimalist Watch',
+                        price: '$199.99',
+                        image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop',
+                        category: 'accessories',
+                        badge: 'New',
+                        rating: 4.8,
+                        reviews: 89
+                    },
+                    {
+                        id: 3,
+                        name: 'Vintage Camera',
+                        price: '$899.99',
+                        image: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&h=400&fit=crop',
+                        category: 'electronics',
+                        badge: '',
+                        rating: 4.6,
+                        reviews: 45
+                    },
+                    {
+                        id: 4,
+                        name: 'Designer Sunglasses',
+                        price: '$159.99',
+                        originalPrice: '$199.99',
+                        image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=400&fit=crop',
+                        category: 'accessories',
+                        badge: 'Sale',
+                        rating: 4.3,
+                        reviews: 67
+                    },
+                    {
+                        id: 5,
+                        name: 'Smart Speaker',
+                        price: '$79.99',
+                        image: 'https://images.unsplash.com/photo-1543512214-318c7553f230?w=400&h=400&fit=crop',
+                        category: 'electronics',
+                        badge: 'Popular',
+                        rating: 4.7,
+                        reviews: 234
+                    },
+                    {
+                        id: 6,
+                        name: 'Leather Backpack',
+                        price: '$249.99',
+                        image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop',
+                        category: 'accessories',
+                        badge: '',
+                        rating: 4.4,
+                        reviews: 56
+                    }
+                ]);
+
+                const categories = ref([
+                    { id: 'all', name: 'All Products' },
+                    { id: 'electronics', name: 'Electronics' },
+                    { id: 'accessories', name: 'Accessories' }
+                ]);
+
+                const filteredProducts = computed(() => {
+                    let filtered = products.value;
+                    
+                    if (selectedCategory.value !== 'all') {
+                        filtered = filtered.filter(p => p.category === selectedCategory.value);
+                    }
+                    
+                    if (searchQuery.value) {
+                        filtered = filtered.filter(p => 
+                            p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+                        );
+                    }
+                    
+                    return filtered;
+                });
+
+                onMounted(() => {
+                    // Initialize SightEdit
+                    window.sightEdit = SightEdit.init({
+                        apiUrl: null,
+                        debug: true,
+                        saveHandler: async (data) => {
+                            console.log('Saving:', data);
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            return { success: true };
+                        }
+                    });
+
+                    window.sightEdit.on('editModeEntered', () => {
+                        isEditMode.value = true;
+                    });
+
+                    window.sightEdit.on('editModeExited', () => {
+                        isEditMode.value = false;
+                    });
+
+                    // Keyboard shortcut
+                    document.addEventListener('keydown', (e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                            e.preventDefault();
+                            window.sightEdit.toggleEditMode();
+                        }
+                    });
+
+                    // Refresh SightEdit after Vue renders
+                    Vue.nextTick(() => {
+                        window.sightEdit.refresh();
+                    });
+                });
+
+                const toggleEditMode = () => {
+                    window.sightEdit.toggleEditMode();
+                };
+
+                const addToCart = (product) => {
+                    cartCount.value++;
+                    console.log('Added to cart:', product.name);
+                };
+
+                const renderStars = (rating) => {
+                    const fullStars = Math.floor(rating);
+                    const hasHalfStar = rating % 1 !== 0;
+                    let stars = '★'.repeat(fullStars);
+                    if (hasHalfStar) stars += '☆';
+                    return stars;
+                };
+
+                return {
+                    isEditMode,
+                    selectedCategory,
+                    cartCount,
+                    searchQuery,
+                    products,
+                    categories,
+                    filteredProducts,
+                    toggleEditMode,
+                    addToCart,
+                    renderStars
+                };
+            },
+            template: `
+                <div class="min-h-screen bg-gray-50">
+                    <!-- Edit Mode Toggle -->
+                    <div class="fixed bottom-4 right-4 z-50">
+                        <button 
+                            @click="toggleEditMode"
+                            :class="[
+                                'px-4 py-2 rounded-full shadow-lg transition-colors',
+                                isEditMode 
+                                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                                    : 'bg-amber-600 hover:bg-amber-700 text-white'
+                            ]"
+                        >
+                            {{ isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode' }}
+                        </button>
+                    </div>
+
+                    <!-- Header -->
+                    <header class="bg-white shadow-sm sticky top-0 z-40">
+                        <div class="container mx-auto px-4">
+                            <div class="flex items-center justify-between py-4">
+                                <div class="flex items-center space-x-8">
+                                    <h1 data-sight="store-name" data-sight-type="text" class="text-2xl font-bold text-gray-900">
+                                        ShopHub
+                                    </h1>
+                                    <nav class="hidden md:flex space-x-6">
+                                        <a href="#" class="text-gray-600 hover:text-gray-900">New Arrivals</a>
+                                        <a href="#" class="text-gray-600 hover:text-gray-900">Best Sellers</a>
+                                        <a href="#" class="text-gray-600 hover:text-gray-900">Sale</a>
+                                    </nav>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="relative">
+                                        <input 
+                                            v-model="searchQuery"
+                                            type="search" 
+                                            placeholder="Search products..."
+                                            class="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500"
+                                        >
+                                    </div>
+                                    <button class="relative p-2">
+                                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        </svg>
+                                        <span v-if="cartCount > 0" class="absolute -top-1 -right-1 bg-amber-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                            {{ cartCount }}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Hero Banner -->
+                    <section class="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                        <div class="container mx-auto px-4 py-16">
+                            <div class="max-w-2xl">
+                                <h2 data-sight="hero-title" data-sight-type="text" class="text-4xl font-bold mb-4">
+                                    Summer Sale Collection
+                                </h2>
+                                <p data-sight="hero-description" data-sight-type="richtext" class="text-xl mb-8 opacity-90">
+                                    Discover amazing deals on our premium products. Up to 50% off on selected items. Limited time offer!
+                                </p>
+                                <button class="bg-white text-amber-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                                    Shop Now
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Category Filter -->
+                    <section class="container mx-auto px-4 py-8">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 data-sight="products-title" data-sight-type="text" class="text-2xl font-bold text-gray-900">
+                                    Featured Products
+                                </h2>
+                                <p data-sight="products-subtitle" data-sight-type="text" class="text-gray-600 mt-1">
+                                    Browse our curated collection
+                                </p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button 
+                                    v-for="category in categories" 
+                                    :key="category.id"
+                                    @click="selectedCategory = category.id"
+                                    :class="[
+                                        'px-4 py-2 rounded-lg font-medium transition-colors',
+                                        selectedCategory === category.id 
+                                            ? 'bg-amber-600 text-white' 
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ]"
+                                >
+                                    {{ category.name }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Products Grid -->
+                        <div class="product-grid">
+                            <div 
+                                v-for="product in filteredProducts" 
+                                :key="product.id"
+                                class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow"
+                            >
+                                <div class="relative">
+                                    <img 
+                                        :data-sight="'product-' + product.id + '-image'"
+                                        data-sight-type="image"
+                                        :src="product.image" 
+                                        :alt="product.name"
+                                        class="w-full h-64 object-cover"
+                                    >
+                                    <span 
+                                        v-if="product.badge"
+                                        :class="[
+                                            'absolute top-2 right-2 px-3 py-1 text-xs font-semibold rounded-full',
+                                            product.badge === 'Sale' ? 'bg-red-500 text-white' :
+                                            product.badge === 'New' ? 'bg-green-500 text-white' :
+                                            'bg-amber-500 text-white'
+                                        ]"
+                                    >
+                                        {{ product.badge }}
+                                    </span>
+                                </div>
+                                <div class="p-4">
+                                    <h3 
+                                        :data-sight="'product-' + product.id + '-name'"
+                                        data-sight-type="text"
+                                        class="text-lg font-semibold text-gray-900 mb-2"
+                                    >
+                                        {{ product.name }}
+                                    </h3>
+                                    <div class="flex items-center mb-2">
+                                        <span class="text-amber-500">{{ renderStars(product.rating) }}</span>
+                                        <span class="text-gray-500 text-sm ml-2">({{ product.reviews }})</span>
+                                    </div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div>
+                                            <span 
+                                                :data-sight="'product-' + product.id + '-price'"
+                                                data-sight-type="text"
+                                                class="text-xl font-bold text-gray-900"
+                                            >
+                                                {{ product.price }}
+                                            </span>
+                                            <span 
+                                                v-if="product.originalPrice"
+                                                class="text-sm text-gray-500 line-through ml-2"
+                                            >
+                                                {{ product.originalPrice }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        @click="addToCart(product)"
+                                        class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition-colors"
+                                    >
+                                        Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Features Section -->
+                    <section class="bg-gray-100 py-12 mt-16">
+                        <div class="container mx-auto px-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 data-sight="feature1-title" data-sight-type="text" class="text-lg font-semibold text-gray-900 mb-2">
+                                        Free Shipping
+                                    </h3>
+                                    <p data-sight="feature1-description" data-sight-type="text" class="text-gray-600">
+                                        On orders over $50
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 data-sight="feature2-title" data-sight-type="text" class="text-lg font-semibold text-gray-900 mb-2">
+                                        Easy Returns
+                                    </h3>
+                                    <p data-sight="feature2-description" data-sight-type="text" class="text-gray-600">
+                                        30-day return policy
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 data-sight="feature3-title" data-sight-type="text" class="text-lg font-semibold text-gray-900 mb-2">
+                                        Secure Payment
+                                    </h3>
+                                    <p data-sight="feature3-description" data-sight-type="text" class="text-gray-600">
+                                        100% secure transactions
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Footer -->
+                    <footer class="bg-gray-900 text-white py-8">
+                        <div class="container mx-auto px-4 text-center">
+                            <p data-sight="footer-text" data-sight-type="text" class="text-gray-400">
+                                © 2024 ShopHub. All rights reserved. Powered by SightEdit.
+                            </p>
+                        </div>
+                    </footer>
+                </div>
+            `
+        });
+
+        app.mount('#app');
+
+        console.log('🎉 SightEdit Vue E-commerce Demo loaded!');
+        console.log('💡 Press Ctrl/Cmd + E or click the button to toggle edit mode');
+        console.log('✨ Click on any amber outlined element to edit content');
+    </script>
+</body>
+</html>

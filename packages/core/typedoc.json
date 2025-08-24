@@ -1,0 +1,43 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/typedoc",
+  "theme": "default",
+  "name": "SightEdit Core API",
+  "readme": "README.md",
+  "includeVersion": true,
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/test/**",
+    "**/tests/**",
+    "**/__tests__/**",
+    "**/node_modules/**"
+  ],
+  "plugin": [
+    "typedoc-plugin-markdown"
+  ],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true,
+    "includeFolders": true
+  },
+  "categorizeByGroup": true,
+  "searchInComments": true,
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "disableSources": false,
+  "gitRevision": "main",
+  "gitRemote": "origin",
+  "hideGenerator": false,
+  "customCss": "./docs/custom.css",
+  "markedOptions": {
+    "gfm": true,
+    "tables": true,
+    "breaks": false,
+    "pedantic": false,
+    "smartLists": true,
+    "smartypants": false
+  }
+}

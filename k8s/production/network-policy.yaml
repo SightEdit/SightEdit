@@ -1,0 +1,362 @@
+# ================================================================================
+# Network Policies for SightEdit
+# Implements micro-segmentation and zero-trust networking
+# ================================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sightedit-backend-netpol
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: backend
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: backend
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow traffic from CDN/Load balancer
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: cdn
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: ingress-controller
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  
+  # Allow monitoring scraping
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 3000  # Metrics endpoint
+  
+  egress:
+  # Allow database connections
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow cache connections  
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Allow external API calls (HTTPS)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sightedit-cdn-netpol
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: sightedit
+    app.kubernetes.io/component: cdn
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: sightedit
+      app.kubernetes.io/component: cdn
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow traffic from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: ingress-controller
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Allow monitoring
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  egress:
+  # Allow proxying to backend
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: backend
+    ports:
+    - protocol: TCP
+      port: 3000
+  
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-netpol
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow connections from backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow backup connections
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: backup
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow monitoring
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres-exporter
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow replica connections
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: replica
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  egress:
+  # Allow replica synchronization
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: replica
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-netpol
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cache
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow connections from backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: backend
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Allow monitoring
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis-exporter
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Allow sentinel connections
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: sentinel
+    ports:
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 26379
+  
+  egress:
+  # Allow sentinel communication
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: sentinel
+    ports:
+    - protocol: TCP
+      port: 26379
+  
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-netpol
+  namespace: sightedit
+  labels:
+    app.kubernetes.io/name: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: monitoring
+  
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow Grafana dashboard access
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000  # Grafana
+  
+  # Allow Prometheus dashboard access
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+  
+  egress:
+  # Allow scraping all services
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 3000  # Backend metrics
+    - protocol: TCP
+      port: 8080  # CDN metrics
+    - protocol: TCP
+      port: 9100  # Node exporter
+    - protocol: TCP
+      port: 9187  # Postgres exporter
+    - protocol: TCP
+      port: 9121  # Redis exporter
+  
+  # Allow alerting (webhook endpoints)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+  
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: sightedit
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

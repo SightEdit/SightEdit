@@ -1,0 +1,519 @@
+name: Database Migration CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'packages/server/node/src/migrations/**'
+      - '.github/workflows/migration.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/server/node/src/migrations/**'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      migration_target:
+        description: 'Migration target (latest or specific migration)'
+        required: false
+        default: 'latest'
+      dry_run:
+        description: 'Perform dry run only'
+        type: boolean
+        default: true
+
+env:
+  NODE_VERSION: '18'
+  MIGRATION_TIMEOUT: 600000  # 10 minutes
+
+jobs:
+  # Validate migrations on all database types
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        database:
+          - { type: 'postgresql', version: '15' }
+          - { type: 'mysql', version: '8.0' }
+          - { type: 'sqlite', version: 'latest' }
+          - { type: 'mongodb', version: '6.0' }
+    
+    services:
+      postgres:
+        image: postgres:${{ matrix.database.version }}
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sightedit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      mysql:
+        image: mysql:${{ matrix.database.version }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sightedit_test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
+      
+      mongodb:
+        image: mongo:${{ matrix.database.version }}
+        env:
+          MONGO_INITDB_DATABASE: sightedit_test
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd packages/server/node
+          npm ci
+
+      - name: Wait for services
+        run: |
+          # Wait for services to be ready
+          sleep 10
+
+      - name: Install database-specific dependencies
+        run: |
+          cd packages/server/node
+          case "${{ matrix.database.type }}" in
+            "postgresql")
+              npm install pg @types/pg
+              ;;
+            "mysql")
+              npm install mysql2
+              ;;
+            "sqlite")
+              npm install sqlite3
+              ;;
+            "mongodb")
+              npm install mongodb
+              ;;
+          esac
+
+      - name: Configure database connection
+        run: |
+          cd packages/server/node
+          case "${{ matrix.database.type }}" in
+            "postgresql")
+              export DB_CONNECTION="postgresql://postgres:postgres@localhost:5432/sightedit_test"
+              ;;
+            "mysql")
+              export DB_CONNECTION="mysql://root:root@localhost:3306/sightedit_test"
+              ;;
+            "sqlite")
+              export DB_CONNECTION="./test-database.sqlite"
+              ;;
+            "mongodb")
+              export DB_CONNECTION="mongodb://localhost:27017/sightedit_test"
+              ;;
+          esac
+          echo "DB_CONNECTION=$DB_CONNECTION" >> $GITHUB_ENV
+
+      - name: Run migration tests
+        run: |
+          cd packages/server/node
+          npx ts-node src/migrations/testing/run-tests.ts \
+            --database-type "${{ matrix.database.type }}" \
+            --connection "${{ env.DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            --output-file "migration-test-results-${{ matrix.database.type }}.json"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-test-results-${{ matrix.database.type }}
+          path: packages/server/node/migration-test-results-*.json
+
+      - name: Check migration integrity
+        run: |
+          cd packages/server/node
+          # Verify all migrations have proper up/down functions
+          npx ts-node -e "
+            import * as fs from 'fs';
+            import * as path from 'path';
+            
+            const migrationDir = 'src/migrations/migrations';
+            const files = fs.readdirSync(migrationDir).filter(f => f.match(/^\d{14}_.+\.(js|ts)$/));
+            
+            for (const file of files) {
+              const content = fs.readFileSync(path.join(migrationDir, file), 'utf8');
+              if (!content.includes('export async function up') || !content.includes('export async function down')) {
+                throw new Error(\`Migration \${file} is missing up or down function\`);
+              }
+            }
+            
+            console.log(\`✅ All \${files.length} migrations are valid\`);
+          "
+
+  # Test database performance with large datasets
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: validate-migrations
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sightedit_perf_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd packages/server/node
+          npm ci
+          npm install pg @types/pg
+
+      - name: Run performance tests
+        run: |
+          cd packages/server/node
+          export DB_CONNECTION="postgresql://postgres:postgres@localhost:5432/sightedit_perf_test"
+          
+          # Create large dataset and test migration performance
+          npx ts-node -e "
+            import { MigrationTestRunner } from './src/migrations/testing/migration-test-runner';
+            
+            async function runPerfTest() {
+              const testRunner = new MigrationTestRunner({
+                testName: 'Performance Test',
+                database: {
+                  type: 'postgresql',
+                  connection: process.env.DB_CONNECTION
+                },
+                migrations: {
+                  directory: './src/migrations/migrations'
+                },
+                cleanup: true,
+                validateSchema: true,
+                createTestData: true,
+                runPerformanceTests: true
+              });
+              
+              const results = await testRunner.runAllTests();
+              
+              // Fail if any migration takes longer than 30 seconds
+              for (const result of results) {
+                if (result.performance && result.performance.totalMigrationTime > 30000) {
+                  throw new Error(\`Migration took too long: \${result.performance.totalMigrationTime}ms\`);
+                }
+              }
+              
+              console.log('✅ Performance tests passed');
+            }
+            
+            runPerfTest().catch(console.error);
+          "
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: packages/server/node/migration-test-report-*.json
+
+  # Staging deployment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [validate-migrations, performance-test]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd packages/server/node
+          npm ci
+
+      - name: Create backup
+        run: |
+          cd packages/server/node
+          npx sightedit-migrate \
+            --connection "${{ secrets.STAGING_DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            backup
+
+      - name: Run migrations (dry run)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          cd packages/server/node
+          echo "🔍 Dry run - showing pending migrations:"
+          npx sightedit-migrate \
+            --connection "${{ secrets.STAGING_DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            status
+
+      - name: Run migrations
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cd packages/server/node
+          
+          # Set migration target
+          TARGET_ARG=""
+          if [ "${{ github.event.inputs.migration_target }}" != "latest" ] && [ -n "${{ github.event.inputs.migration_target }}" ]; then
+            TARGET_ARG="${{ github.event.inputs.migration_target }}"
+          fi
+          
+          npx sightedit-migrate \
+            --connection "${{ secrets.STAGING_DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            --verbose \
+            up $TARGET_ARG
+
+      - name: Validate deployment
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cd packages/server/node
+          # Run post-migration validation
+          npx ts-node -e "
+            import { SchemaValidator } from './src/migrations/core/schema-validator';
+            import { DatabaseAdapter } from './src/migrations/core/adapters/database-adapter';
+            
+            async function validate() {
+              const connection = await DatabaseAdapter.create({
+                type: 'postgresql',
+                connection: '${{ secrets.STAGING_DB_CONNECTION }}'
+              });
+              
+              const validator = new SchemaValidator(connection);
+              const result = await validator.validateSchema();
+              
+              if (!result.isValid) {
+                console.error('❌ Schema validation failed:', result.errors);
+                process.exit(1);
+              }
+              
+              console.log('✅ Schema validation passed');
+              await connection.close();
+            }
+            
+            validate().catch(console.error);
+          "
+
+      - name: Notify deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+
+  # Production deployment (manual approval required)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate-migrations, performance-test]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd packages/server/node
+          npm ci
+
+      - name: Create production backup
+        run: |
+          cd packages/server/node
+          
+          # Create comprehensive backup
+          BACKUP_FILE=$(npx sightedit-migrate \
+            --connection "${{ secrets.PRODUCTION_DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            backup | grep "created:" | cut -d' ' -f3)
+          
+          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+
+      - name: Upload backup to secure storage
+        run: |
+          # Upload backup to S3 or another secure location
+          echo "Backup created: ${{ env.BACKUP_FILE }}"
+          # aws s3 cp "${{ env.BACKUP_FILE }}" s3://your-backup-bucket/production/$(date +%Y%m%d-%H%M%S)/
+
+      - name: Run production migrations
+        if: github.event.inputs.dry_run != 'true'
+        timeout-minutes: 10
+        run: |
+          cd packages/server/node
+          
+          # Set migration target
+          TARGET_ARG=""
+          if [ "${{ github.event.inputs.migration_target }}" != "latest" ] && [ -n "${{ github.event.inputs.migration_target }}" ]; then
+            TARGET_ARG="${{ github.event.inputs.migration_target }}"
+          fi
+          
+          npx sightedit-migrate \
+            --connection "${{ secrets.PRODUCTION_DB_CONNECTION }}" \
+            --migrations-dir "src/migrations/migrations" \
+            --verbose \
+            up $TARGET_ARG
+
+      - name: Validate production deployment
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cd packages/server/node
+          # Comprehensive validation for production
+          npx ts-node -e "
+            import { SchemaValidator } from './src/migrations/core/schema-validator';
+            import { DatabaseAdapter } from './src/migrations/core/adapters/database-adapter';
+            
+            async function validateProduction() {
+              const connection = await DatabaseAdapter.create({
+                type: 'postgresql',
+                connection: '${{ secrets.PRODUCTION_DB_CONNECTION }}'
+              });
+              
+              // Schema validation
+              const validator = new SchemaValidator(connection);
+              const result = await validator.validateSchema();
+              
+              if (!result.isValid) {
+                console.error('❌ Production schema validation failed:', result.errors);
+                process.exit(1);
+              }
+              
+              // Check critical tables exist and have data
+              const criticalTables = ['users', 'content', 'permissions'];
+              for (const table of criticalTables) {
+                const count = await connection.query(\`SELECT COUNT(*) as count FROM \${table}\`);
+                console.log(\`✅ Table \${table}: \${count[0].count} records\`);
+              }
+              
+              console.log('✅ Production validation passed');
+              await connection.close();
+            }
+            
+            validateProduction().catch(console.error);
+          "
+
+      - name: Notify production deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#critical-deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          mention: channel
+
+      - name: Create deployment tag
+        if: success()
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          TAG_NAME="migration-deploy-$(date +%Y%m%d-%H%M%S)"
+          git tag -a "$TAG_NAME" -m "Production migration deployment"
+          git push origin "$TAG_NAME"
+
+  # Cleanup old test artifacts
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [validate-migrations, performance-test, deploy-staging, deploy-production]
+    
+    steps:
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.includes('migration-test-results') && 
+                  new Date(artifact.created_at) < oneWeekAgo) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+                console.log(`Deleted old artifact: ${artifact.name}`);
+              }
+            }

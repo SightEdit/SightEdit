@@ -1,0 +1,41 @@
+import { BaseEditor, EditMode } from '@sightedit/core';
+export declare class MarkdownEditor extends BaseEditor {
+    getMode(): EditMode;
+    private editorView;
+    private container;
+    private previewPane;
+    private toolbar;
+    private isPreviewMode;
+    private renderer;
+    private pluginOptions;
+    private themeCompartment;
+    constructor(element: HTMLElement, config?: any);
+    render(): void;
+    private createModal;
+    private createToolbar;
+    private createEditor;
+    private createPreviewPane;
+    private handleToolbarAction;
+    toggleBold(): void;
+    toggleItalic(): void;
+    cycleHeading(): void;
+    insertLink(): void;
+    insertImage(): void;
+    toggleCode(): void;
+    toggleList(): void;
+    toggleQuote(): void;
+    togglePreview(): void;
+    private updatePreview;
+    private showHelp;
+    private wrapSelection;
+    private toggleLinePrefix;
+    private getSelectedText;
+    private insertText;
+    extractValue(): string;
+    getValue(): string;
+    setValue(value: string): void;
+    applyValue(value: string): void;
+    private close;
+    destroy(): void;
+}
+//# sourceMappingURL=editor.d.ts.map

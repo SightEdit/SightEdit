@@ -1,0 +1,512 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run integration tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '20.x'
+  DOCKER_COMPOSE_VERSION: '2.23.0'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set test matrix
+        id: set-matrix
+        run: |
+          echo "matrix={
+            \"database\": [\"postgresql\", \"mysql\", \"mongodb\"],
+            \"node-version\": [\"18.x\", \"20.x\"],
+            \"test-suite\": [\"api\", \"database\", \"auth\", \"security\", \"collaboration\", \"performance\"]
+          }" >> $GITHUB_OUTPUT
+
+  unit-and-integration-tests:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18.x', '20.x']
+        database: ['postgresql', 'mysql', 'mongodb']
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: sightedit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: sightedit_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -u test_user -ptest_password"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3307:3306
+
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test_user
+          MONGO_INITDB_ROOT_PASSWORD: test_password
+          MONGO_INITDB_DATABASE: sightedit_test
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27018:27017
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6380:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd integration-tests && npm ci
+
+      - name: Wait for services to be ready
+        run: |
+          # Wait for database services to be fully ready
+          timeout 60 bash -c 'until nc -z localhost 5433; do sleep 1; done'
+          timeout 60 bash -c 'until nc -z localhost 3307; do sleep 1; done'
+          timeout 60 bash -c 'until nc -z localhost 27018; do sleep 1; done'
+          timeout 60 bash -c 'until nc -z localhost 6380; do sleep 1; done'
+
+      - name: Setup test environment
+        run: |
+          cd integration-tests
+          npm run setup:env
+        env:
+          DATABASE_TYPE: ${{ matrix.database }}
+          NODE_ENV: test
+
+      - name: Run unit tests with coverage
+        run: |
+          npm run test:unit -- --coverage --coverageDirectory=coverage/unit
+          
+      - name: Run integration tests
+        run: |
+          cd integration-tests
+          npm run test:coverage
+        env:
+          DATABASE_TYPE: ${{ matrix.database }}
+          CI: true
+        timeout-minutes: 30
+
+      - name: Generate test report
+        if: always()
+        run: |
+          cd integration-tests
+          npm run test:report || true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: |
+            coverage/unit/lcov.info
+            integration-tests/coverage/lcov.info
+          flags: integration-tests
+          name: Integration Tests (${{ matrix.node-version }}, ${{ matrix.database }})
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.node-version }}-${{ matrix.database }}
+          path: |
+            integration-tests/coverage/
+            integration-tests/test-results/
+            integration-tests/playwright-report/
+          retention-days: 30
+
+  e2e-tests:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: ['chromium', 'firefox', 'webkit']
+        shard: [1, 2, 3, 4]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd integration-tests && npm ci
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start services
+        run: |
+          cd integration-tests
+          npm run docker:up
+          sleep 30 # Wait for services to start
+
+      - name: Run E2E tests
+        run: |
+          cd integration-tests
+          npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
+        env:
+          CI: true
+        timeout-minutes: 30
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          path: |
+            integration-tests/test-results/
+            integration-tests/playwright-report/
+          retention-days: 30
+
+      - name: Stop services
+        if: always()
+        run: |
+          cd integration-tests
+          npm run docker:down
+
+  security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd integration-tests && npm ci
+
+      - name: Start services
+        run: |
+          cd integration-tests
+          npm run docker:up
+          sleep 30
+
+      - name: Run security tests
+        run: |
+          cd integration-tests
+          npm run test:security
+        env:
+          CI: true
+        timeout-minutes: 15
+
+      - name: Security scan with npm audit
+        run: |
+          npm audit --audit-level=moderate
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: 'http://localhost:3334'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Upload security test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-test-results
+          path: |
+            integration-tests/test-results/security/
+            report_html.html
+            report_md.md
+            report_json.json
+          retention-days: 30
+
+      - name: Stop services
+        if: always()
+        run: |
+          cd integration-tests
+          npm run docker:down
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd integration-tests && npm ci
+
+      - name: Start services
+        run: |
+          cd integration-tests
+          npm run docker:up
+          sleep 30
+
+      - name: Run performance tests
+        run: |
+          cd integration-tests
+          npm run test:performance
+        env:
+          CI: true
+        timeout-minutes: 20
+
+      - name: Load testing with Artillery
+        run: |
+          cd integration-tests
+          npx artillery run performance/load-test-config.yml --output performance-report.json
+          npx artillery report performance-report.json --output performance-report.html
+
+      - name: Upload performance test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            integration-tests/test-results/performance/
+            integration-tests/performance-report.*
+          retention-days: 30
+
+      - name: Stop services
+        if: always()
+        run: |
+          cd integration-tests
+          npm run docker:down
+
+  visual-regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd e2e/visual-regression && npm ci
+          npx playwright install --with-deps
+
+      - name: Start services
+        run: |
+          cd integration-tests
+          npm run docker:up
+          sleep 30
+
+      - name: Run visual regression tests
+        run: |
+          cd e2e/visual-regression
+          npx playwright test
+        env:
+          CI: true
+
+      - name: Upload visual regression results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-regression-results
+          path: |
+            e2e/visual-regression/test-results/
+            e2e/visual-regression/playwright-report/
+          retention-days: 30
+
+      - name: Stop services
+        if: always()
+        run: |
+          cd integration-tests
+          npm run docker:down
+
+  accessibility-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd integration-tests && npm ci
+          npx playwright install --with-deps
+
+      - name: Start services
+        run: |
+          cd integration-tests
+          npm run docker:up
+          sleep 30
+
+      - name: Run accessibility tests
+        run: |
+          cd integration-tests
+          npm run test:accessibility
+        env:
+          CI: true
+
+      - name: Upload accessibility test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-test-results
+          path: |
+            integration-tests/test-results/accessibility/
+          retention-days: 30
+
+      - name: Stop services
+        if: always()
+        run: |
+          cd integration-tests
+          npm run docker:down
+
+  test-summary:
+    needs: [unit-and-integration-tests, e2e-tests, security-tests, performance-tests, visual-regression-tests, accessibility-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results
+
+      - name: Generate comprehensive test report
+        run: |
+          echo "# Integration Test Summary" > test-summary.md
+          echo "" >> test-summary.md
+          echo "## Test Results Overview" >> test-summary.md
+          echo "" >> test-summary.md
+          
+          # Count test result files
+          UNIT_TESTS=$(find test-results -name "*unit*" -type d | wc -l)
+          INTEGRATION_TESTS=$(find test-results -name "*integration*" -type d | wc -l)
+          E2E_TESTS=$(find test-results -name "*e2e*" -type d | wc -l)
+          SECURITY_TESTS=$(find test-results -name "*security*" -type d | wc -l)
+          PERFORMANCE_TESTS=$(find test-results -name "*performance*" -type d | wc -l)
+          VISUAL_TESTS=$(find test-results -name "*visual*" -type d | wc -l)
+          ACCESSIBILITY_TESTS=$(find test-results -name "*accessibility*" -type d | wc -l)
+          
+          echo "- Unit Tests: $UNIT_TESTS result sets" >> test-summary.md
+          echo "- Integration Tests: $INTEGRATION_TESTS result sets" >> test-summary.md
+          echo "- E2E Tests: $E2E_TESTS result sets" >> test-summary.md
+          echo "- Security Tests: $SECURITY_TESTS result sets" >> test-summary.md
+          echo "- Performance Tests: $PERFORMANCE_TESTS result sets" >> test-summary.md
+          echo "- Visual Regression Tests: $VISUAL_TESTS result sets" >> test-summary.md
+          echo "- Accessibility Tests: $ACCESSIBILITY_TESTS result sets" >> test-summary.md
+          echo "" >> test-summary.md
+          
+          echo "## Test Coverage" >> test-summary.md
+          echo "" >> test-summary.md
+          echo "Detailed coverage reports are available in the artifacts." >> test-summary.md
+          
+          cat test-summary.md
+
+      - name: Upload test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-summary
+          path: |
+            test-summary.md
+            test-results/
+          retention-days: 90
+
+      - name: Comment on PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('test-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🧪 Integration Test Results\n\n${summary}\n\n*Test artifacts are available in the workflow run.*`
+            });
+
+  deploy-test-reports:
+    needs: test-summary
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: comprehensive-test-summary
+          path: test-reports
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./test-reports
+          publish_branch: gh-pages-test-reports
+          destination_dir: integration-tests
