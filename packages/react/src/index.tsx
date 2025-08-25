@@ -234,6 +234,10 @@ export { Toolbar } from './components/Toolbar';
 export { Preview } from './components/Preview';
 export { CollaboratorList } from './components/CollaboratorList';
 
+// Export main hooks
+export { useSightEdit as useSightEditHook, useSightEditContext } from './hooks/useSightEdit';
+export { useEditor } from './hooks/useEditor';
+
 // Export hooks
 export { useCollaboration } from './hooks/useCollaboration';
 export { useHistory } from './hooks/useHistory';

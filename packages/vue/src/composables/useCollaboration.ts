@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useSightEdit } from '../index';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
+import { SightEditKey } from '../keys';
 
 export interface Collaborator {
   id: string;
@@ -17,7 +17,11 @@ export interface UseCollaborationOptions {
 }
 
 export function useCollaboration(options: UseCollaborationOptions) {
-  const { state } = useSightEdit();
+  const sightEditApi = inject(SightEditKey);
+  if (!sightEditApi) {
+    throw new Error('useCollaboration must be used within an app with SightEditPlugin installed');
+  }
+  const { state } = sightEditApi;
   const collaborators = ref<Collaborator[]>([]);
   const isConnected = ref(false);
   const connectionError = ref<string | null>(null);

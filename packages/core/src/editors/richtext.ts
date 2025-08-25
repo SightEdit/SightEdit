@@ -23,8 +23,8 @@ export class RichTextEditor extends BaseEditor {
 
   constructor(element: HTMLElement, options?: EditorOptions) {
     super(element, options);
-    this.placeholder = element.dataset.sightPlaceholder || 'Start typing...';
-    this.readonly = element.dataset.sightReadonly === 'true';
+    this.placeholder = element.dataset?.sightPlaceholder || 'Start typing...';
+    this.readonly = element.dataset?.sightReadonly === 'true';
     this.value = this.extractValue();
   }
 

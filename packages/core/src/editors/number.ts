@@ -5,8 +5,9 @@ import { createElement } from '../utils/dom';
 export class NumberEditor extends BaseEditor {
   private input: HTMLInputElement | null = null;
 
-  constructor(element: HTMLElement, options?: EditorOptions) {
+  constructor(element: HTMLElement, options?: EditorOptions | string) {
     super(element, options);
+    this.type = 'number'; // Set the type explicitly
   }
 
   render(): void {
@@ -148,8 +149,17 @@ export class NumberEditor extends BaseEditor {
     const value = parseFloat(this.input.value);
     
     if (!isNaN(value)) {
-      const validation = this.validate();
-      if (validation === true) {
+      // Validate the input value directly
+      const schema = this.options.schema;
+      let validationError: string | null = null;
+      
+      if (schema?.min !== undefined && value < schema.min) {
+        validationError = `Minimum value is ${schema.min}`;
+      } else if (schema?.max !== undefined && value > schema.max) {
+        validationError = `Maximum value is ${schema.max}`;
+      }
+      
+      if (!validationError) {
         // Format the display value
         const formatted = this.formatNumber(value);
         this.element.textContent = formatted;
@@ -159,7 +169,8 @@ export class NumberEditor extends BaseEditor {
           await this.onSave(value);
         }
       } else {
-        this.showError(validation as string);
+        this.showError(validationError);
+        return; // Don't cleanup input if there's an error
       }
     }
     
@@ -173,20 +184,27 @@ export class NumberEditor extends BaseEditor {
     const hasCurrency = /[$€£¥]/.test(text);
     const hasPercentage = /%/.test(text);
     
+    // Determine appropriate decimal places based on value
+    const decimals = value.toString().split('.')[1]?.length || 0;
+    const significantDecimals = Math.min(decimals, 3);
+    
     if (hasCurrency) {
       const currency = text.match(/[$€£¥]/)?.[0] || '$';
+      // For currency, use at least 2 decimal places, but more if the value has more precision
+      const currencyDecimals = Math.max(2, significantDecimals);
       return currency + value.toLocaleString(this.options.locale || 'en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: Math.min(currencyDecimals, 3),
+        maximumFractionDigits: Math.min(currencyDecimals, 3)
       });
     } else if (hasPercentage) {
-      return value.toLocaleString(this.options.locale || 'en-US') + '%';
+      return value.toLocaleString(this.options.locale || 'en-US', {
+        maximumFractionDigits: significantDecimals
+      }) + '%';
     } else {
       // Regular number formatting
-      const decimals = value.toString().split('.')[1]?.length || 0;
       return value.toLocaleString(this.options.locale || 'en-US', {
-        minimumFractionDigits: decimals > 0 ? Math.min(decimals, 3) : 0,
-        maximumFractionDigits: Math.max(decimals, 3)
+        minimumFractionDigits: decimals > 0 ? significantDecimals : 0,
+        maximumFractionDigits: significantDecimals
       });
     }
   }
@@ -210,10 +228,30 @@ export class NumberEditor extends BaseEditor {
     }
     
     const text = this.element.textContent || '';
-    // Remove currency symbols, commas, and percentage signs
-    const cleaned = text.replace(/[$€£¥,%]/g, '').replace(/,/g, '');
-    const value = parseFloat(cleaned);
     
+    // Check for multiple currency symbols indicating multiple values (like "$100 €200 £300")
+    const currencyMatches = text.match(/[$€£¥]/g);
+    if (currencyMatches && currencyMatches.length > 1) {
+      // Multiple currencies - extract all numbers and concatenate
+      const numbers = text.match(/\d+/g) || [];
+      return parseInt(numbers.join(''));
+    }
+    
+    // Handle single number with European or US format
+    // European format: comma as decimal separator with NO period, or period as thousand separator
+    // Examples: €100,50 or €1.234,56
+    const europeanFormat = /^[^.,]*(\d{1,3}\.)*\d+,\d{1,2}[^.,]*$/.test(text.replace(/[$€£¥%]/g, ''));
+    
+    let cleaned: string;
+    if (europeanFormat) {
+      // European format: remove thousand separator periods, replace decimal comma with period
+      cleaned = text.replace(/[$€£¥%]/g, '').replace(/\./g, '').replace(',', '.');
+    } else {
+      // US format: remove commas (thousand separators) and currency/percentage symbols
+      cleaned = text.replace(/[$€£¥%]/g, '').replace(/,/g, '');
+    }
+    
+    const value = parseFloat(cleaned);
     return isNaN(value) ? 0 : value;
   }
 
@@ -225,23 +263,46 @@ export class NumberEditor extends BaseEditor {
     }
   }
 
-  validate(): boolean | string {
-    const value = this.extractValue();
+  validate(value?: number): boolean | string {
+    const valueToValidate = value !== undefined ? value : this.extractValue();
     const schema = this.options.schema;
     
-    if (schema?.required && (value === null || value === undefined)) {
-      return 'This field is required';
+    // Call parent validation first
+    const parentResult = super.validate(valueToValidate);
+    if (parentResult !== true) {
+      return parentResult;
     }
     
-    if (schema?.min !== undefined && value < schema.min) {
+    if (schema?.required) {
+      if (value === undefined) {
+        const text = this.element.textContent?.trim() || '';
+        const dataValue = this.element.dataset.sightValue;
+        if (!text && !dataValue) {
+          return 'This field is required';
+        }
+      }
+    }
+    
+    if (isNaN(valueToValidate)) {
+      return 'Must be a valid number';
+    }
+    
+    if (schema?.min !== undefined && valueToValidate < schema.min) {
       return `Minimum value is ${schema.min}`;
     }
     
-    if (schema?.max !== undefined && value > schema.max) {
+    if (schema?.max !== undefined && valueToValidate > schema.max) {
       return `Maximum value is ${schema.max}`;
     }
     
-    return super.validate();
+    return true;
+  }
+
+  setValidation(constraints: { min?: number; max?: number }): void {
+    if (!this.options.schema) {
+      this.options.schema = { type: 'number' };
+    }
+    Object.assign(this.options.schema, constraints);
   }
 
   destroy(): void {

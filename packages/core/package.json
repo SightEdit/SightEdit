@@ -10,25 +10,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "npm run build:esbuild",
-    "build:esbuild": "esbuild src/index.basic.ts --bundle --outfile=dist/core.esm.js --platform=browser --format=esm --external:quill --external:dompurify",
-    "build:rollup": "rollup -c",
-    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --platform=browser --format=esm --external:quill --external:dompurify --external:@sentry/browser --external:@sentry/tracing --external:@sentry/node --external:@sentry/profiling-node",
-    "build:umd": "esbuild src/index.ts --bundle --outfile=dist/index.js --platform=browser --format=iife --global-name=SightEdit --external:quill --external:dompurify",
-    "build:min": "esbuild src/index.ts --bundle --outfile=dist/sightedit.min.js --platform=browser --format=iife --global-name=SightEdit --minify --external:quill --external:dompurify",
-    "build:core": "esbuild src/core/index.ts --bundle --outfile=dist/core.min.js --platform=browser --format=iife --global-name=SightEditCore --minify",
+    "build": "npm run build:types && npm run build:esm && npm run build:umd",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
-    "dev": "rollup -c --watch",
+    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --platform=browser --format=esm --external:quill --external:dompurify",
+    "build:umd": "esbuild src/index.ts --bundle --outfile=dist/index.js --platform=browser --format=iife --global-name=SightEdit --external:quill --external:dompurify",
+    "dev": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --platform=browser --format=esm --external:quill --external:dompurify --watch",
     "test": "jest",
-    "test:perf": "jest --testMatch='**/*.perf.test.ts'",
     "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit",
-    "perf:check": "node ../../scripts/performance-check.js",
-    "perf:analyze": "npm run build && bundlesize",
-    "docs": "jsdoc -c jsdoc.config.json",
-    "docs:serve": "npm run docs && npx serve docs/api",
-    "typedoc": "typedoc --out docs/typedoc src/index.ts",
-    "docs:all": "npm run docs && npm run typedoc"
+    "typecheck": "tsc --noEmit --skipLibCheck"
   },
   "keywords": [
     "visual-editor",

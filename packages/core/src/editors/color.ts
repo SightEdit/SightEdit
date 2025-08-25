@@ -6,8 +6,9 @@ export class ColorEditor extends BaseEditor {
   private colorPicker: HTMLInputElement | null = null;
   private tooltip: HTMLElement | null = null;
 
-  constructor(element: HTMLElement, options?: EditorOptions) {
+  constructor(element: HTMLElement, options?: EditorOptions | string) {
     super(element, options);
+    this.type = 'color'; // Set the type explicitly
   }
 
   render(): void {
@@ -210,6 +211,25 @@ export class ColorEditor extends BaseEditor {
     if (indicator instanceof HTMLElement) {
       indicator.style.backgroundColor = value;
     }
+  }
+
+  validate(value?: string): boolean | string {
+    const colorToValidate = value !== undefined ? value : this.extractValue();
+    
+    // Check if it's a valid hex color
+    if (!/^#[0-9A-F]{3}$/i.test(colorToValidate) && !/^#[0-9A-F]{6}$/i.test(colorToValidate)) {
+      return 'Must be a valid hex color (e.g., #ff0000 or #f00)';
+    }
+    
+    const schema = this.options.schema;
+    if (schema?.required) {
+      const text = this.element.textContent?.trim() || '';
+      if (!text) {
+        return 'This field is required';
+      }
+    }
+    
+    return super.validate();
   }
 
   destroy(): void {

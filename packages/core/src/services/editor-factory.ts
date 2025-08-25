@@ -18,7 +18,7 @@ export interface EditorFactory {
 }
 
 export interface EditorConstructor {
-  new (context: EditorContext): Editor;
+  new (elementOrContext: HTMLElement | EditorContext, config?: any): Editor;
 }
 
 export class EditorRegistry {
@@ -141,6 +141,11 @@ export class LazyEditorFactory implements EditorFactory {
     const className = element.className;
     const dataType = element.getAttribute('data-sight-type');
 
+    // Check explicit type first
+    if (dataType && this.supportedTypes.includes(dataType)) {
+      return true;
+    }
+
     // Basic element type detection
     switch (tagName) {
       case 'input':
@@ -164,11 +169,6 @@ export class LazyEditorFactory implements EditorFactory {
           return this.supportedTypes.includes('richtext');
         }
         return this.supportedTypes.includes('text');
-    }
-
-    // Check explicit type
-    if (dataType && this.supportedTypes.includes(dataType)) {
-      return true;
     }
 
     return false;

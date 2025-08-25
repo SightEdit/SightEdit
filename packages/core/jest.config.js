@@ -2,6 +2,13 @@ export default {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {
+    url: 'https://localhost',
+    userAgent: 'SightEdit Test Suite',
+    pretendToBeVisual: true,
+    runScripts: 'dangerously',
+    resources: 'usable'
+  },
   roots: ['<rootDir>/src'],
   testMatch: [
     '**/__tests__/**/*.ts',

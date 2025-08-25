@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SightEdit Performance Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .metric-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .alert-card {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-healthy { background-color: #10b981; }
+    .status-warning { background-color: #f59e0b; }
+    .status-error { background-color: #ef4444; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">SightEdit Performance Dashboard</h1>
+          <p class="text-gray-600">Real-time monitoring and analytics for your SightEdit deployment</p>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <span class="status-indicator status-healthy"></span>
+            <span class="text-sm font-medium">System Healthy</span>
+          </div>
+          <div class="bg-white px-4 py-2 rounded-lg shadow">
+            <span class="text-sm text-gray-500">Last Updated:</span>
+            <span id="lastUpdated" class="text-sm font-medium ml-1">--</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <!-- Active Sessions -->
+      <div class="metric-card p-6 rounded-lg text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm opacity-80">Active Sessions</p>
+            <p id="activeSessions" class="text-3xl font-bold">--</p>
+          </div>
+          <div class="text-4xl opacity-60">👥</div>
+        </div>
+        <div class="mt-4">
+          <span id="sessionsChange" class="text-sm opacity-80">-- from last hour</span>
+        </div>
+      </div>
+
+      <!-- Save Operations -->
+      <div class="bg-green-500 p-6 rounded-lg text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm opacity-80">Saves/Hour</p>
+            <p id="savesPerHour" class="text-3xl font-bold">--</p>
+          </div>
+          <div class="text-4xl opacity-60">💾</div>
+        </div>
+        <div class="mt-4">
+          <span id="savesChange" class="text-sm opacity-80">-- from last hour</span>
+        </div>
+      </div>
+
+      <!-- Response Time -->
+      <div class="bg-blue-500 p-6 rounded-lg text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm opacity-80">Avg Response</p>
+            <p id="responseTime" class="text-3xl font-bold">--</p>
+          </div>
+          <div class="text-4xl opacity-60">⚡</div>
+        </div>
+        <div class="mt-4">
+          <span id="responseChange" class="text-sm opacity-80">-- from last hour</span>
+        </div>
+      </div>
+
+      <!-- Error Rate -->
+      <div class="bg-red-500 p-6 rounded-lg text-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm opacity-80">Error Rate</p>
+            <p id="errorRate" class="text-3xl font-bold">--</p>
+          </div>
+          <div class="text-4xl opacity-60">⚠️</div>
+        </div>
+        <div class="mt-4">
+          <span id="errorChange" class="text-sm opacity-80">-- from last hour</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <!-- Performance Timeline -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Performance Timeline</h3>
+        <canvas id="performanceChart" height="200"></canvas>
+      </div>
+
+      <!-- Editor Usage -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Editor Type Usage</h3>
+        <canvas id="editorUsageChart" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <!-- Health Status -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">System Health</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">API Status</span>
+            <div class="flex items-center space-x-2">
+              <span class="status-indicator status-healthy"></span>
+              <span class="text-sm font-medium">Operational</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">Database</span>
+            <div class="flex items-center space-x-2">
+              <span class="status-indicator status-healthy"></span>
+              <span class="text-sm font-medium">Connected</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">Cache Layer</span>
+            <div class="flex items-center space-x-2">
+              <span class="status-indicator status-warning"></span>
+              <span class="text-sm font-medium">Degraded</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">File Storage</span>
+            <div class="flex items-center space-x-2">
+              <span class="status-indicator status-healthy"></span>
+              <span class="text-sm font-medium">Available</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resource Usage -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Resource Usage</h3>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-sm text-gray-600">CPU Usage</span>
+              <span id="cpuUsage" class="text-sm font-medium">--%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div id="cpuBar" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-sm text-gray-600">Memory Usage</span>
+              <span id="memoryUsage" class="text-sm font-medium">--%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div id="memoryBar" class="bg-green-500 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-1">
+              <span class="text-sm text-gray-600">Disk Usage</span>
+              <span id="diskUsage" class="text-sm font-medium">--%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div id="diskBar" class="bg-yellow-500 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Alerts -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Recent Alerts</h3>
+        <div id="alertsList" class="space-y-3">
+          <!-- Alerts will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Metrics -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- API Endpoints -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">API Endpoint Performance</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left">Endpoint</th>
+                <th class="px-4 py-2 text-left">Requests</th>
+                <th class="px-4 py-2 text-left">Avg Time</th>
+                <th class="px-4 py-2 text-left">Errors</th>
+              </tr>
+            </thead>
+            <tbody id="endpointTable">
+              <!-- Data populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- User Activity -->
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">User Activity</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between py-2 border-b">
+            <span class="text-gray-600">Total Users Today</span>
+            <span id="totalUsers" class="font-medium">--</span>
+          </div>
+          <div class="flex items-center justify-between py-2 border-b">
+            <span class="text-gray-600">Active Editors</span>
+            <span id="activeEditors" class="font-medium">--</span>
+          </div>
+          <div class="flex items-center justify-between py-2 border-b">
+            <span class="text-gray-600">Content Updates</span>
+            <span id="contentUpdates" class="font-medium">--</span>
+          </div>
+          <div class="flex items-center justify-between py-2 border-b">
+            <span class="text-gray-600">Failed Operations</span>
+            <span id="failedOps" class="font-medium text-red-600">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Performance monitoring implementation
+    class SightEditDashboard {
+      constructor() {
+        this.charts = {};
+        this.refreshInterval = 30000; // 30 seconds
+        this.init();
+      }
+
+      init() {
+        this.setupCharts();
+        this.loadData();
+        this.startRefresh();
+      }
+
+      setupCharts() {
+        // Performance Timeline Chart
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        this.charts.performance = new Chart(performanceCtx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Response Time (ms)',
+              data: [],
+              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              fill: true
+            }, {
+              label: 'Error Rate (%)',
+              data: [],
+              borderColor: 'rgb(239, 68, 68)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              fill: true,
+              yAxisID: 'y1'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+              },
+              y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                grid: {
+                  drawOnChartArea: false,
+                },
+              }
+            }
+          }
+        });
+
+        // Editor Usage Chart
+        const editorCtx = document.getElementById('editorUsageChart').getContext('2d');
+        this.charts.editorUsage = new Chart(editorCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Text', 'Rich Text', 'Image', 'Number', 'Date', 'Select', 'Other'],
+            datasets: [{
+              data: [0, 0, 0, 0, 0, 0, 0],
+              backgroundColor: [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                '#8b5cf6', '#06b6d4', '#6b7280'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      }
+
+      async loadData() {
+        try {
+          // Simulate API call for demo
+          const data = await this.fetchMetrics();
+          this.updateMetrics(data);
+          this.updateCharts(data);
+          this.updateTables(data);
+          this.updateAlerts(data);
+          
+          document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        } catch (error) {
+          console.error('Failed to load dashboard data:', error);
+          this.showError('Failed to load dashboard data');
+        }
+      }
+
+      async fetchMetrics() {
+        // In production, this would fetch from your monitoring API
+        // For demo, we'll simulate realistic data
+        const now = Date.now();
+        return {
+          activeSessions: Math.floor(Math.random() * 100) + 50,
+          savesPerHour: Math.floor(Math.random() * 500) + 200,
+          responseTime: Math.floor(Math.random() * 100) + 50,
+          errorRate: Math.random() * 2,
+          cpuUsage: Math.random() * 80 + 10,
+          memoryUsage: Math.random() * 70 + 20,
+          diskUsage: Math.random() * 60 + 30,
+          totalUsers: Math.floor(Math.random() * 1000) + 500,
+          activeEditors: Math.floor(Math.random() * 50) + 10,
+          contentUpdates: Math.floor(Math.random() * 200) + 100,
+          failedOps: Math.floor(Math.random() * 10),
+          timeline: Array.from({length: 12}, (_, i) => ({
+            time: new Date(now - (11-i) * 5 * 60 * 1000).toLocaleTimeString(),
+            responseTime: Math.floor(Math.random() * 200) + 50,
+            errorRate: Math.random() * 5
+          })),
+          editorUsage: {
+            text: Math.floor(Math.random() * 100) + 200,
+            richtext: Math.floor(Math.random() * 80) + 50,
+            image: Math.floor(Math.random() * 60) + 30,
+            number: Math.floor(Math.random() * 40) + 20,
+            date: Math.floor(Math.random() * 30) + 10,
+            select: Math.floor(Math.random() * 50) + 25,
+            other: Math.floor(Math.random() * 20) + 5
+          },
+          endpoints: [
+            { name: '/api/sightedit/save', requests: 1234, avgTime: 85, errors: 3 },
+            { name: '/api/sightedit/batch', requests: 456, avgTime: 120, errors: 1 },
+            { name: '/api/sightedit/upload', requests: 234, avgTime: 300, errors: 2 },
+            { name: '/api/sightedit/schema/*', requests: 678, avgTime: 45, errors: 0 }
+          ],
+          alerts: [
+            { type: 'warning', message: 'High response time detected on /api/sightedit/batch', time: '2 min ago' },
+            { type: 'info', message: 'Cache layer performance degraded', time: '5 min ago' },
+            { type: 'success', message: 'System backup completed successfully', time: '1 hour ago' }
+          ]
+        };
+      }
+
+      updateMetrics(data) {
+        // Update key metrics
+        document.getElementById('activeSessions').textContent = data.activeSessions;
+        document.getElementById('savesPerHour').textContent = data.savesPerHour;
+        document.getElementById('responseTime').textContent = `${data.responseTime}ms`;
+        document.getElementById('errorRate').textContent = `${data.errorRate.toFixed(2)}%`;
+
+        // Update resource usage
+        document.getElementById('cpuUsage').textContent = `${Math.round(data.cpuUsage)}%`;
+        document.getElementById('cpuBar').style.width = `${data.cpuUsage}%`;
+        
+        document.getElementById('memoryUsage').textContent = `${Math.round(data.memoryUsage)}%`;
+        document.getElementById('memoryBar').style.width = `${data.memoryUsage}%`;
+        
+        document.getElementById('diskUsage').textContent = `${Math.round(data.diskUsage)}%`;
+        document.getElementById('diskBar').style.width = `${data.diskUsage}%`;
+
+        // Update user activity
+        document.getElementById('totalUsers').textContent = data.totalUsers;
+        document.getElementById('activeEditors').textContent = data.activeEditors;
+        document.getElementById('contentUpdates').textContent = data.contentUpdates;
+        document.getElementById('failedOps').textContent = data.failedOps;
+      }
+
+      updateCharts(data) {
+        // Update performance timeline
+        this.charts.performance.data.labels = data.timeline.map(t => t.time);
+        this.charts.performance.data.datasets[0].data = data.timeline.map(t => t.responseTime);
+        this.charts.performance.data.datasets[1].data = data.timeline.map(t => t.errorRate);
+        this.charts.performance.update();
+
+        // Update editor usage
+        const usage = data.editorUsage;
+        this.charts.editorUsage.data.datasets[0].data = [
+          usage.text, usage.richtext, usage.image,
+          usage.number, usage.date, usage.select, usage.other
+        ];
+        this.charts.editorUsage.update();
+      }
+
+      updateTables(data) {
+        // Update endpoint table
+        const tbody = document.getElementById('endpointTable');
+        tbody.innerHTML = data.endpoints.map(endpoint => `
+          <tr class="border-b">
+            <td class="px-4 py-2 font-mono text-xs">${endpoint.name}</td>
+            <td class="px-4 py-2">${endpoint.requests}</td>
+            <td class="px-4 py-2">${endpoint.avgTime}ms</td>
+            <td class="px-4 py-2 ${endpoint.errors > 0 ? 'text-red-600' : 'text-green-600'}">
+              ${endpoint.errors}
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      updateAlerts(data) {
+        // Update alerts list
+        const alertsList = document.getElementById('alertsList');
+        alertsList.innerHTML = data.alerts.map(alert => {
+          const iconMap = {
+            warning: '⚠️',
+            error: '❌',
+            info: 'ℹ️',
+            success: '✅'
+          };
+          const colorMap = {
+            warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+            error: 'bg-red-50 border-red-200 text-red-800',
+            info: 'bg-blue-50 border-blue-200 text-blue-800',
+            success: 'bg-green-50 border-green-200 text-green-800'
+          };
+          
+          return `
+            <div class="flex items-start space-x-3 p-3 rounded-lg border ${colorMap[alert.type]}">
+              <span class="text-lg">${iconMap[alert.type]}</span>
+              <div class="flex-1">
+                <p class="text-sm font-medium">${alert.message}</p>
+                <p class="text-xs opacity-75">${alert.time}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      startRefresh() {
+        setInterval(() => {
+          this.loadData();
+        }, this.refreshInterval);
+      }
+
+      showError(message) {
+        // Show error notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.remove();
+        }, 5000);
+      }
+    }
+
+    // Initialize dashboard when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      new SightEditDashboard();
+    });
+
+    // Export metrics for external monitoring tools
+    window.SightEditDashboard = {
+      exportMetrics: async () => {
+        const dashboard = new SightEditDashboard();
+        return await dashboard.fetchMetrics();
+      }
+    };
+  </script>
+</body>
+</html>

@@ -17,18 +17,7 @@ import SightEdit, { SightEditConfig } from '@sightedit/core';
 
 type SightEditCore = ReturnType<typeof SightEdit.init>;
 
-interface SightEditState {
-  instance: any; // Use any to handle Vue reactive proxy 
-  isEditMode: boolean;
-}
-
-interface SightEditApi {
-  state: SightEditState;
-  toggleEditMode: () => void;
-  save: (sight: string, value: any, type?: string) => Promise<void>;
-}
-
-const SightEditKey: InjectionKey<SightEditApi> = Symbol('sight-edit');
+import { SightEditKey, SightEditState, SightEditApi } from './keys';
 
 // Import directives at the top
 import { vEditable } from './directives/v-editable';
@@ -250,6 +239,10 @@ export const useSightEditSave = () => {
   return save;
 };
 
+// Export main composables
+export { useSightEdit as useSightEditComposable, useEditor } from './composables/useSightEdit';
+export { useEditorState } from './composables/useEditorState';
+
 // Export additional composables
 export { useCollaboration } from './composables/useCollaboration';
 export { useHistory } from './composables/useHistory';
@@ -264,6 +257,10 @@ export const registerDirectives = (app: any) => {
   app.directive('editable', vEditable);
   app.directive('sight', vSight);
 };
+
+// Re-export key and types
+export { SightEditKey } from './keys';
+export type { SightEditState, SightEditApi } from './keys';
 
 // Re-export types
 export type { 

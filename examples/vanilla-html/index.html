@@ -257,15 +257,37 @@
         SightEdit.init({
             endpoint: '/api/sightedit',
             debug: true,
+            mode: 'development',
+            onChange: (data) => {
+                console.log('Content changed:', data);
+                if (data.pendingChanges) {
+                    console.log(`${data.pendingChanges} pending changes - will be saved with "Save All"`);
+                }
+            },
             onSave: async (data) => {
-                // In a real app, this would send to your backend
+                // This is called during batch save
                 const response = await mockAPI.save(data);
-                console.log('Saved successfully:', response);
+                console.log('Saved:', response);
+                return response;
             },
             onError: (error) => {
                 console.error('SightEdit error:', error);
+                return false; // Don't throw
             }
         });
+        
+        // Listen for batch save events
+        if (sightEdit) {
+            sightEdit.on('batchSaved', (count) => {
+                console.log(`✅ ${count} changes saved successfully`);
+            });
+            
+            sightEdit.on('changesDiscarded', () => {
+                console.log('🗑️ All changes discarded');
+            });
+            
+            console.log('✅ SightEdit initialized - Press Ctrl+E to enter edit mode');
+        }
     </script>
 </body>
 </html>

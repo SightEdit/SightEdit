@@ -4,9 +4,6 @@ import { HTTPClient, HTTPError, RequestOptions } from '../../services/http-clien
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-// Mock timers for testing delays
-jest.useFakeTimers();
-
 describe('HTTPClient', () => {
   let client: HTTPClient;
   const baseURL = 'https://api.example.com';
@@ -14,17 +11,10 @@ describe('HTTPClient', () => {
   beforeEach(() => {
     client = new HTTPClient(baseURL);
     mockFetch.mockClear();
-    jest.clearAllTimers();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
-    jest.useFakeTimers();
-  });
-
-  afterAll(() => {
-    jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -189,18 +179,18 @@ describe('HTTPClient', () => {
       
       const options: RequestOptions = {
         method: 'GET',
-        timeout: 5000
+        timeout: 100 // Short timeout for testing
       };
 
-      // Mock a slow response
-      mockFetch.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 10000)));
+      // Mock a slow response that takes longer than timeout
+      mockFetch.mockImplementation(() => new Promise(resolve => {
+        setTimeout(() => resolve({
+          ok: true,
+          json: jest.fn().mockResolvedValue({ data: 'test' })
+        }), 200);
+      }));
 
-      const requestPromise = client.request('/slow', options);
-
-      // Fast forward time to trigger timeout
-      jest.advanceTimersByTime(5000);
-
-      await expect(requestPromise).rejects.toThrow();
+      await expect(client.request('/slow', options)).rejects.toThrow();
       expect(abortSpy).toHaveBeenCalled();
 
       abortSpy.mockRestore();
@@ -240,8 +230,20 @@ describe('HTTPClient', () => {
 
   describe('retry mechanism', () => {
     it('should retry on retryable errors', async () => {
-      const errorResponse = { ok: false, status: 500, statusText: 'Internal Server Error' };
-      const successResponse = { ok: true, status: 200, json: jest.fn().mockResolvedValue({ success: true }) };
+      const errorResponse = { 
+        ok: false, 
+        status: 500, 
+        statusText: 'Internal Server Error',
+        json: jest.fn().mockRejectedValue(new Error('Server error')),
+        text: jest.fn().mockResolvedValue('Internal Server Error')
+      };
+      const successResponse = { 
+        ok: true, 
+        status: 200, 
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: jest.fn().mockResolvedValue({ success: true }),
+        text: jest.fn().mockResolvedValue('{"success": true}')
+      };
 
       mockFetch
         .mockResolvedValueOnce(errorResponse)
@@ -251,14 +253,14 @@ describe('HTTPClient', () => {
       const options: RequestOptions = {
         method: 'GET',
         retries: 2,
-        retryDelay: 100
+        retryDelay: 1
       };
 
       const result = await client.request('/users', options);
 
       expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(result).toEqual({ success: true });
-    });
+    }, 10000);
 
     it('should not retry on client errors (4xx)', async () => {
       const errorResponse = { ok: false, status: 400, statusText: 'Bad Request' };
@@ -278,7 +280,12 @@ describe('HTTPClient', () => {
 
     it('should retry on 429 rate limiting', async () => {
       const rateLimitResponse = { ok: false, status: 429, statusText: 'Too Many Requests' };
-      const successResponse = { ok: true, status: 200, json: jest.fn().mockResolvedValue({ success: true }) };
+      const successResponse = { 
+        ok: true, 
+        status: 200, 
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: jest.fn().mockResolvedValue({ success: true }) 
+      };
 
       mockFetch
         .mockResolvedValueOnce(rateLimitResponse)
@@ -287,7 +294,7 @@ describe('HTTPClient', () => {
       const options: RequestOptions = {
         method: 'GET',
         retries: 1,
-        retryDelay: 100
+        retryDelay: 1
       };
 
       const result = await client.request('/users', options);
@@ -303,19 +310,14 @@ describe('HTTPClient', () => {
       const options: RequestOptions = {
         method: 'GET',
         retries: 3,
-        retryDelay: 100
+        retryDelay: 1 // Very small delay for testing
       };
-
-      const startTime = Date.now();
       
       try {
         await client.request('/users', options);
       } catch (error) {
         // Expected to fail after retries
       }
-
-      // Should have made delays: 100ms, 200ms, 400ms
-      jest.advanceTimersByTime(700);
 
       expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
     });
@@ -328,12 +330,12 @@ describe('HTTPClient', () => {
       const options: RequestOptions = {
         method: 'GET',
         retries: 2,
-        retryDelay: 100
+        retryDelay: 1
       };
 
       await expect(client.request('/users', options))
         .rejects
-        .toThrow('AbortError');
+        .toThrow('The operation was aborted');
 
       expect(mockFetch).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
@@ -345,6 +347,7 @@ describe('HTTPClient', () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: jest.fn().mockResolvedValue(mockResponse)
       });
     });
@@ -412,10 +415,12 @@ describe('HTTPClient', () => {
 
   describe('isRetryableError', () => {
     it('should identify server errors as retryable', async () => {
-      const serverError = { ok: false, status: 500, statusText: 'Internal Server Error' };
-      mockFetch.mockResolvedValueOnce(serverError);
+      const serverError = { ok: false, status: 500, statusText: 'Internal Server Error', headers: new Headers() };
+      mockFetch
+        .mockResolvedValueOnce(serverError)
+        .mockResolvedValueOnce(serverError); // Fail again on retry
 
-      await expect(client.request('/test', { method: 'GET', retries: 1 }))
+      await expect(client.request('/test', { method: 'GET', retries: 1, retryDelay: 1 }))
         .rejects
         .toThrow(HTTPError);
 
@@ -423,10 +428,12 @@ describe('HTTPClient', () => {
     });
 
     it('should identify rate limiting as retryable', async () => {
-      const rateLimitError = { ok: false, status: 429, statusText: 'Too Many Requests' };
-      mockFetch.mockResolvedValueOnce(rateLimitError);
+      const rateLimitError = { ok: false, status: 429, statusText: 'Too Many Requests', headers: new Headers() };
+      mockFetch
+        .mockResolvedValueOnce(rateLimitError)
+        .mockResolvedValueOnce(rateLimitError); // Fail again on retry
 
-      await expect(client.request('/test', { method: 'GET', retries: 1 }))
+      await expect(client.request('/test', { method: 'GET', retries: 1, retryDelay: 1 }))
         .rejects
         .toThrow(HTTPError);
 
@@ -434,7 +441,7 @@ describe('HTTPClient', () => {
     });
 
     it('should not retry client errors', async () => {
-      const clientError = { ok: false, status: 400, statusText: 'Bad Request' };
+      const clientError = { ok: false, status: 400, statusText: 'Bad Request', headers: new Headers() };
       mockFetch.mockResolvedValue(clientError);
 
       await expect(client.request('/test', { method: 'GET', retries: 1 }))
@@ -449,10 +456,11 @@ describe('HTTPClient', () => {
         .mockRejectedValueOnce(new TypeError('Network error'))
         .mockResolvedValueOnce({
           ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
           json: jest.fn().mockResolvedValue({ success: true })
         });
 
-      const result = await client.request('/test', { method: 'GET', retries: 1 });
+      const result = await client.request('/test', { method: 'GET', retries: 1, retryDelay: 1 });
 
       expect(result).toEqual({ success: true });
       expect(mockFetch).toHaveBeenCalledTimes(2); // Should retry
@@ -464,14 +472,16 @@ describe('HTTPClient', () => {
       const response = {
         ok: true,
         headers: new Headers(),
-        json: jest.fn().mockResolvedValue({ data: 'test' })
+        json: jest.fn().mockResolvedValue({ data: 'test' }),
+        text: jest.fn().mockResolvedValue('test'),
+        blob: jest.fn().mockResolvedValue(new Blob())
       };
       mockFetch.mockResolvedValue(response);
 
       const result = await client.request('/test', { method: 'GET' });
 
-      expect(response.json).toHaveBeenCalled();
-      expect(result).toEqual({ data: 'test' });
+      expect(response.blob).toHaveBeenCalled(); // Should default to blob for unknown content-type
+      expect(result).toBeInstanceOf(Blob);
     });
 
     it('should handle empty response body', async () => {

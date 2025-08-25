@@ -1,4 +1,4 @@
-import { Editor, EditorConfig } from '../types';
+import { Editor, EditorConfig, ValidationResult } from '../types';
 import { EventEmitter } from '../utils/event-emitter';
 import { addClass, removeClass, hasClass } from '../utils/dom';
 
@@ -9,17 +9,81 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
   protected originalValue: any;
   protected isEditing = false;
   protected isValid = true;
+  private _id: string;
+  private _destroyed = false;
   
   value: any;
   onSave?: (value: any) => Promise<void>;
+  
+  // Properties for editor metadata
+  sight?: string;
+  type?: string;
+  context?: any;
 
-  constructor(element: HTMLElement, config?: EditorConfig) {
+  constructor(elementOrContext: HTMLElement | any, config?: EditorConfig | string) {
     super();
-    this.element = element;
-    this.config = config || {};
+    
+    // Handle legacy string sight parameter
+    if (typeof config === 'string') {
+      config = { sight: config } as EditorConfig;
+    }
+    
+    // Handle both constructor signatures
+    if (elementOrContext && typeof elementOrContext === 'object' && 'element' in elementOrContext) {
+      // EditorContext signature from factory
+      const context = elementOrContext;
+      this.element = context.element as HTMLElement;
+      this.config = context.config || {};
+      this.sight = context.sight;
+      this.type = context.type;
+      this.context = context; // Store the full context for tests
+      
+      // Set up callbacks if provided
+      if (context.onSave) {
+        this.onSave = context.onSave;
+      }
+    } else {
+      // Traditional signature
+      this.element = elementOrContext as HTMLElement;
+      this.config = (config as EditorConfig) || {};
+    }
+    
     this.options = this.config;
-    this.originalValue = this.extractValue();
+    this._id = this.generateId();
+    this.originalValue = this.extractValue() ?? '';
     this.value = this.originalValue;
+  }
+
+  private generateId(): string {
+    return `editor_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`;
+  }
+
+  getId(): string {
+    return this._id;
+  }
+
+  getElement(): HTMLElement {
+    return this.element;
+  }
+  
+  getType(): string {
+    return this.type || this.config.type || 'unknown';
+  }
+
+  isDestroyed(): boolean {
+    return this._destroyed;
+  }
+
+  focus(): void {
+    if (this.element && typeof this.element.focus === 'function') {
+      this.element.focus();
+    }
+  }
+
+  blur(): void {
+    if (this.element && typeof this.element.blur === 'function') {
+      this.element.blur();
+    }
   }
 
   abstract render(): void;
@@ -33,10 +97,16 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
   setValue(value: any): void {
     this.value = value;
     this.applyValue(value);
+    
+    // If not currently editing, this becomes the new baseline
+    if (!this.isEditing) {
+      this.originalValue = value;
+    }
+    
     this.emit('change', value);
   }
 
-  validate(value?: any): boolean | string {
+  validate(value?: any): boolean | string | ValidationResult {
     const schema = this.config.schema;
     const valueToValidate = value !== undefined ? value : this.value;
     
@@ -85,26 +155,35 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
   }
 
   protected async stopEditing(save = true): Promise<void> {
-    if (!this.isEditing) return;
-    
-    if (save) {
-      const validation = this.validate();
-      if (validation !== true) {
-        this.showError(validation as string);
-        return;
+    try {
+      if (!this.isEditing) return;
+      
+      if (save) {
+        const validation = this.validate();
+        if (validation !== true) {
+          this.showError(validation as string);
+          return;
+        }
+        
+        if (this.hasChanged()) {
+          await this.save();
+        }
+      } else {
+        // Restore original value safely
+        if (this.originalValue !== undefined && this.originalValue !== null) {
+          this.setValue(this.originalValue);
+        }
       }
       
-      if (this.hasChanged()) {
-        await this.save();
-      }
-    } else {
-      this.setValue(this.originalValue);
+      this.isEditing = false;
+      removeClass(this.element, 'sight-edit-active');
+      this.clearError();
+      this.emit('editEnd');
+    } catch (error) {
+      console.error('Error stopping edit:', error);
+      this.isEditing = false;
+      removeClass(this.element, 'sight-edit-active');
     }
-    
-    this.isEditing = false;
-    removeClass(this.element, 'sight-edit-active');
-    this.clearError();
-    this.emit('editEnd');
   }
 
   protected hasChanged(): boolean {
@@ -120,8 +199,9 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
       this.originalValue = this.value;
       this.showSuccess();
     } catch (error) {
+      console.error('Save failed:', error);
       this.showError('Failed to save');
-      throw error;
+      // Don't throw, just log
     } finally {
       removeClass(this.element, 'sight-edit-saving');
     }
@@ -153,23 +233,40 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
   }
 
   destroy(): void {
-    this.stopEditing(false);
-    this.removeAllListeners();
-    removeClass(this.element, 'sight-edit-ready');
+    try {
+      if (this._destroyed) return;
+      
+      // Try to stop editing without saving
+      if (this.isEditing) {
+        this.isEditing = false;
+        removeClass(this.element, 'sight-edit-active');
+      }
+      
+      this.removeAllListeners();
+      removeClass(this.element, 'sight-edit-ready');
+      this._destroyed = true;
+    } catch (error) {
+      console.error('Error destroying editor:', error);
+      this._destroyed = true;
+    }
   }
 
   protected setupKeyboardHandlers(editableElement: HTMLElement): void {
-    editableElement.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        this.stopEditing(false);
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        if (this.config.mode !== 'inline' || !this.allowsLineBreaks()) {
+    try {
+      editableElement.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
           e.preventDefault();
-          this.stopEditing(true);
+          this.stopEditing(false).catch(err => console.warn('Error on escape:', err));
+        } else if (e.key === 'Enter' && !e.shiftKey) {
+          if (this.config.mode !== 'inline' || !this.allowsLineBreaks()) {
+            e.preventDefault();
+            this.stopEditing(true).catch(err => console.warn('Error on enter:', err));
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Error setting up keyboard handlers:', error);
+    }
   }
 
   protected allowsLineBreaks(): boolean {
@@ -196,6 +293,7 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
       .sight-edit-active {
         outline: 2px solid ${this.config.theme?.primaryColor || '#007bff'} !important;
         outline-offset: 2px;
+        z-index: ${this.config.theme?.zIndex || 9999};
       }
       
       .sight-edit-saving {
@@ -218,7 +316,7 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
         border-radius: ${this.config.theme?.borderRadius || '4px'};
         font-size: 12px;
         white-space: nowrap;
-        z-index: ${(this.config.theme?.zIndex || 9999) + 1};
+        z-index: ${this.config.theme?.zIndex || 9999};
         margin-bottom: 4px;
       }
       
@@ -229,4 +327,5 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
     
     document.head.appendChild(style);
   }
+
 }

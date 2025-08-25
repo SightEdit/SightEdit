@@ -1,17 +1,21 @@
 import { BaseEditor } from './base';
 import { EditorConfig } from '../types';
-import { debounce } from '../utils/dom';
+import { debounce, removeClass } from '../utils/dom';
 
 export class TextEditor extends BaseEditor {
   private originalHTML = '';
   private saveDebounced: () => void;
 
-  constructor(element: HTMLElement, config?: EditorConfig) {
+  constructor(element: HTMLElement, config?: EditorConfig | string) {
     super(element, config);
+    this.type = 'text'; // Set the type explicitly
     this.saveDebounced = debounce(() => this.autoSave(), 1000);
   }
 
   render(): void {
+    if ((this.config as any).debug) {
+      console.log('[TextEditor] render() called for:', this.element.dataset.sight || this.element.dataset.sightedit);
+    }
     this.injectStyles();
     this.makeEditable();
   }
@@ -28,7 +32,20 @@ export class TextEditor extends BaseEditor {
     this.element.setAttribute('contenteditable', 'false');
     this.element.setAttribute('spellcheck', 'true');
     
+    // Add debug logging
+    if ((this.config as any).debug) {
+      console.log('[TextEditor] Making element editable:', this.element.dataset.sight);
+    }
+    
     this.element.addEventListener('click', () => {
+      if ((this.config as any).debug) {
+        console.log('[TextEditor] Click event fired:', {
+          sight: this.element.dataset.sight,
+          isEditing: this.isEditing,
+          contenteditable: this.element.getAttribute('contenteditable')
+        });
+      }
+      
       if (!this.isEditing) {
         this.startEditing();
       }
@@ -53,6 +70,10 @@ export class TextEditor extends BaseEditor {
   }
 
   protected startEditing(): void {
+    if ((this.config as any).debug) {
+      console.log('[TextEditor] Starting edit mode for:', this.element.dataset.sight);
+    }
+    
     super.startEditing();
     this.originalHTML = this.element.innerHTML;
     this.element.setAttribute('contenteditable', 'true');
@@ -60,6 +81,10 @@ export class TextEditor extends BaseEditor {
     requestAnimationFrame(() => {
       this.element.focus();
       this.selectAll();
+      
+      if ((this.config as any).debug) {
+        console.log('[TextEditor] Element focused and selected:', this.element.dataset.sight);
+      }
     });
   }
 
@@ -69,9 +94,14 @@ export class TextEditor extends BaseEditor {
     if (!save) {
       this.element.innerHTML = this.originalHTML;
       this.value = this.extractValue();
+      // Temporarily override applyValue to prevent it from overwriting our restored HTML
+      const originalApplyValue = this.applyValue;
+      this.applyValue = () => {}; // No-op during cancel
+      await super.stopEditing(save);
+      this.applyValue = originalApplyValue; // Restore original method
+    } else {
+      await super.stopEditing(save);
     }
-    
-    await super.stopEditing(save);
   }
 
   private selectAll(): void {
@@ -92,9 +122,9 @@ export class TextEditor extends BaseEditor {
   }
 
   destroy(): void {
+    super.destroy();
     this.element.removeAttribute('contenteditable');
     this.element.removeAttribute('spellcheck');
-    super.destroy();
   }
 
   protected injectStyles(): void {

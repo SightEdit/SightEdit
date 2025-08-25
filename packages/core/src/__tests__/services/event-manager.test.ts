@@ -394,7 +394,7 @@ describe('EditorLifecycleManager', () => {
       const mutationRecord: MutationRecord = {
         type: 'childList',
         target: document.body,
-        addedNodes: new NodeList(),
+        addedNodes: [] as any,
         removedNodes: [mockElement] as any,
         previousSibling: null,
         nextSibling: null,

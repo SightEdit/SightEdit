@@ -9,6 +9,7 @@ export interface SightEditConfig {
   locale?: string;
   translations?: Record<string, string>;
   onSave?: (data: SaveData) => void | Promise<void>;
+  onChange?: (data: any) => void | Promise<void>;
   onError?: (error: Error) => void;
   editModeKey?: string;
   schemaRegistry?: {
@@ -151,6 +152,20 @@ export interface ElementSchema {
   max?: number;
   options?: Array<{ value: string; label: string }>;
   validation?: (value: any) => boolean | string;
+  
+  // Additional properties for different editor types
+  maxSize?: string;
+  aspectRatio?: string;
+  step?: number;
+  format?: string;
+  currency?: string;
+  toolbar?: string[] | any[];
+  crop?: boolean;
+  multiple?: boolean;
+  itemType?: string;
+  minItems?: number;
+  maxItems?: number;
+  includeTime?: boolean;
 }
 
 export interface Editor {
@@ -160,11 +175,22 @@ export interface Editor {
   getValue(): any;
   setValue(value: any): void;
   applyValue(value: any): void;
-  validate(value?: any): boolean | string;
+  validate(value?: any): boolean | string | ValidationResult;
   destroy(): void;
   onSave?: (value: any) => Promise<void>;
   extractValue(): any; // Added for saveAll functionality
   _cleanupFunctions?: (() => void)[];
+  
+  // Additional methods expected by tests
+  getId(): string;
+  getElement(): Element;
+  isDestroyed(): boolean;
+  focus(): void;
+  blur(): void;
+  
+  // Properties for editor metadata
+  sight?: string;
+  type?: string;
 }
 
 export interface EditorConfig {
@@ -173,6 +199,8 @@ export interface EditorConfig {
   theme?: ThemeConfig;
   locale?: string;
   a11y?: any; // AccessibilityManager instance
+  sight?: string; // For legacy compatibility
+  type?: string; // For type metadata
 }
 
 export type EditorOptions = EditorConfig;
@@ -209,6 +237,12 @@ export interface BatchResponse {
   success: boolean;
   results: SaveResponse[];
   error?: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  sanitizedValue?: any;
 }
 
 export interface SightEdit {

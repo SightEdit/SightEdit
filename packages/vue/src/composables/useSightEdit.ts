@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, Ref } from 'vue';
-import { SightEditCore, SightEditConfig, Editor } from '@sightedit/core';
+import { SightEditCore, SightEditConfig, Editor, ElementType } from '@sightedit/core';
 
 export interface UseSightEditOptions {
   config?: Partial<SightEditConfig>;
@@ -52,7 +52,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
     };
 
     const editorsUpdatedListener = () => {
-      activeEditors.value = instance.getActiveEditors();
+      const editorsMap = instance.getActiveEditors();
+      activeEditors.value = Array.from(editorsMap.values());
     };
 
     const errorListener = (event: any) => {
@@ -62,7 +63,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
     const initializedListener = () => {
       isInitialized.value = true;
       isEditMode.value = instance.isEditMode();
-      activeEditors.value = instance.getActiveEditors();
+      const editorsMap = instance.getActiveEditors();
+      activeEditors.value = Array.from(editorsMap.values());
     };
 
     instance.on('edit-mode:toggled', editModeListener);
@@ -108,8 +110,14 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
             return globalInstance;
           }
 
-          const newInstance = SightEditCore.getInstance(initConfig || config);
-          await newInstance.initialize();
+          let newInstance = SightEditCore.getInstance();
+          if (!newInstance && (initConfig || config)) {
+            newInstance = SightEditCore.init(initConfig || config);
+            newInstance.initialize();
+          }
+          if (!newInstance) {
+            throw new Error('Failed to create SightEditCore instance');
+          }
           globalInstance = newInstance;
           return newInstance;
         })();
@@ -124,7 +132,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
       // Update state immediately
       isInitialized.value = true;
       isEditMode.value = instance.isEditMode();
-      activeEditors.value = instance.getActiveEditors();
+      const editorsMap = instance.getActiveEditors();
+      activeEditors.value = Array.from(editorsMap.values());
     } catch (err) {
       error.value = err as Error;
       throw err;
@@ -161,7 +170,7 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
 
   const setEditMode = (enabled: boolean): void => {
     if (sightEdit.value && isInitialized.value) {
-      sightEdit.value.setEditMode(enabled);
+      sightEdit.value.setEditMode(enabled ? 'edit' : 'view');
     }
   };
 
@@ -170,7 +179,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
       try {
         isLoading.value = true;
         await sightEdit.value.refresh?.();
-        activeEditors.value = sightEdit.value.getActiveEditors();
+        const editorsMap = sightEdit.value.getActiveEditors();
+        activeEditors.value = Array.from(editorsMap.values());
       } catch (err) {
         error.value = err as Error;
         throw err;
@@ -253,9 +263,9 @@ export function useEditor(sight: string, options: {
     if (!editor.value) return;
 
     try {
-      const result = await editor.value.validate(value.value);
+      const result = editor.value.validate(value.value);
       
-      // Handle both simple (boolean | string) and advanced (ValidationResult) validation
+      // Handle validation result (boolean | string from BaseEditor)
       if (typeof result === 'boolean') {
         isValid.value = result;
         errors.value = result ? [] : ['Validation failed'];
@@ -263,9 +273,9 @@ export function useEditor(sight: string, options: {
         isValid.value = false;
         errors.value = [result];
       } else {
-        // It's a ValidationResult object
-        isValid.value = result.isValid;
-        errors.value = result.errors;
+        // Fallback for unexpected result type
+        isValid.value = true;
+        errors.value = [];
       }
     } catch (err) {
       isValid.value = false;
@@ -322,7 +332,7 @@ export function useEditor(sight: string, options: {
           element.setAttribute('data-validation', JSON.stringify(validation));
         }
 
-        editor.value = await sightEdit.value.createEditor(element, type);
+        editor.value = sightEdit.value.createEditor(element, type as ElementType);
       } catch (err) {
         console.error('Failed to create editor:', err);
       }

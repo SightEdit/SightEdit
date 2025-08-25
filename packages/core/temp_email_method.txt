@@ -1,0 +1,43 @@
+  static validateEmail(email: string): boolean {
+    // Length check
+    if (!email || email.length > 254) {
+      return false;
+    }
+    
+    // Basic format check - must have one @ symbol
+    const atCount = (email.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      return false;
+    }
+    
+    const [localPart, domain] = email.split('@');
+    
+    // Local part validation
+    if (!localPart || localPart.length === 0 || localPart.length > 64) {
+      return false;
+    }
+    
+    // Domain validation  
+    if (!domain || domain.length === 0 || domain.length > 253) {
+      return false;
+    }
+    
+    // Check for consecutive dots
+    if (email.includes('..')) {
+      return false;
+    }
+    
+    // Check for spaces
+    if (email.includes(' ')) {
+      return false;
+    }
+    
+    // Domain must contain at least one dot and not end with dot
+    if (!domain.includes('.') || domain.endsWith('.')) {
+      return false;  
+    }
+    
+    // Basic email regex for final validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  }

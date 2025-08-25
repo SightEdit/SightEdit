@@ -52,7 +52,7 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
   // Initialize SightEdit instance
   useEffect(() => {
     if (!sightEditRef.current) {
-      sightEditRef.current = SightEditCore.getInstance();
+      sightEditRef.current = SightEditCore.getInstance() || undefined;
     }
   }, []);
 
@@ -79,10 +79,34 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
     debounceTimeoutRef.current = setTimeout(async () => {
       if (editor && value !== undefined) {
         try {
-          const result = await editor.validate(value);
-          setValidationResult(result);
+          const result = editor.validate(value);
           
-          if (autoSave && result.isValid && isDirty) {
+          // Handle validation result (boolean | string from BaseEditor)
+          let validationResult: ValidationResult;
+          if (typeof result === 'boolean') {
+            validationResult = {
+              isValid: result,
+              errors: result ? [] : ['Validation failed']
+            };
+          } else if (typeof result === 'string') {
+            validationResult = {
+              isValid: false,
+              errors: [result]
+            };
+          } else if (result && typeof result === 'object' && 'isValid' in result) {
+            // It's already a ValidationResult object
+            validationResult = result;
+          } else {
+            // Fallback for unknown result type
+            validationResult = {
+              isValid: true,
+              errors: []
+            };
+          }
+          
+          setValidationResult(validationResult);
+          
+          if (autoSave && validationResult.isValid && isDirty) {
             await save();
           }
         } catch (error) {
@@ -118,7 +142,7 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
           element.setAttribute('data-validation', JSON.stringify(validation));
         }
 
-        const newEditor = await sightEditRef.current.createEditor(element, type);
+        const newEditor = sightEditRef.current.createEditor(element, type);
         
         if (mounted) {
           setEditor(newEditor);

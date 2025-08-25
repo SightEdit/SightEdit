@@ -1,0 +1,21 @@
+  static isHtmlSafe(html: string, strict: boolean = false): boolean {
+    try {
+      // Check for obvious threats first
+      if (this.hasObviousThreat(html)) {
+        return false;
+      }
+      
+      // For safe HTML with no threats, consider it safe
+      // This handles cases where DOMPurify might make minor formatting changes
+      const sanitized = this.sanitize(html, undefined, strict);
+      
+      // If sanitization removed significant content, it's not safe
+      const textContent = (str: string) => str.replace(/<[^>]*>/g, '').trim();
+      const originalText = textContent(html);
+      const sanitizedText = textContent(sanitized);
+      
+      return sanitizedText === originalText;
+    } catch {
+      return false;
+    }
+  }

@@ -12,15 +12,16 @@ Transform any website into a visual editor with a single line of code. No backen
 
 - **🚀 Instant Setup** - Add one script tag and you're ready
 - **🎯 Smart Detection** - Automatically identifies editable content
-- **📝 11+ Editor Types** - Text, rich text, images, dates, colors, JSON, and more
-- **🎨 4 Editor Modes** - Inline, modal, sidebar, and tooltip editing
-- **💾 Smart Saving** - Batch operations with local queue and offline support
+- **📝 12 Editor Types** - Text, RichText, Image, File, JSON, Color, Date, Number, Select, Link, Collection, Multi-Select
+- **🎨 Beautiful Modal UIs** - Professional modal interfaces for each editor type
+- **💾 Batch Updates** - All changes saved together with "Save All" button
+- **📦 Change Tracking** - Local storage persistence, full undo/discard capability
 - **🔒 Enterprise Security** - XSS protection, CSP compliance, input sanitization
-- **⚡ Blazing Fast** - 151KB bundle, <50ms initialization
+- **⚡ Blazing Fast** - ~280KB bundle, <50ms initialization
 - **🌍 Framework Agnostic** - Works with React, Vue, Angular, or vanilla JS
 - **📱 Mobile Ready** - Touch-optimized with responsive design
-- **🔄 Real-time Sync** - Optional collaboration features
-- **🎭 Flexible Backend** - Works with any REST API
+- **🎭 Edit Mode Toolbar** - Save All / Discard All / Exit controls
+- **✨ Visual Indicators** - Changed items highlighted, hover tooltips
 
 ## 🚀 Quick Start
 
@@ -68,7 +69,13 @@ Use the powerful `data-sightedit` attribute with multiple format options:
 
 ### 4. Toggle Edit Mode
 
-Press `Ctrl/Cmd + E` or use the floating button to enter edit mode.
+Press `Ctrl/Cmd + E` to enter edit mode. In edit mode:
+- **Toolbar appears** at the top with Save All / Discard All buttons
+- **Editable elements** get blue dashed outlines
+- **Click any element** to open its editor
+- **Modified elements** turn yellow
+- **All changes tracked locally** until you click "Save All"
+- **No backend calls** until explicit save
 
 ## 📖 Data Attribute Format
 

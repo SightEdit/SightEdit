@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SightEdit - Minimal Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .editable {
+            border: 2px dashed transparent;
+            padding: 4px;
+            transition: all 0.2s ease;
+        }
+        .status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+        .toggle-btn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .toggle-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <div>Mode: <span id="mode-indicator">view</span></div>
+        <div>Press Ctrl+E to toggle edit mode</div>
+    </div>
+
+    <button class="toggle-btn" onclick="toggleEditMode()">Toggle Edit Mode</button>
+
+    <h1>SightEdit - Minimal Test Page</h1>
+
+    <div class="container">
+        <h2>Text Editing</h2>
+        <p data-sight="title" class="editable">Welcome to SightEdit!</p>
+        <p data-sight="description" class="editable">This is a simple test page to verify SightEdit functionality. Click on this text when in edit mode to modify it.</p>
+    </div>
+
+    <div class="container">
+        <h2>Image Editing</h2>
+        <img data-sight="hero-image" 
+             src="https://via.placeholder.com/400x200/007bff/ffffff?text=Click+to+Edit+Image" 
+             alt="Hero Image" 
+             style="width: 100%; max-width: 400px; height: auto;" 
+             class="editable">
+    </div>
+
+    <div class="container">
+        <h2>Advanced Attributes</h2>
+        <p data-sight="product-name" 
+           data-sight-label="Product Name"
+           data-sight-placeholder="Enter product name..."
+           data-sight-required="true"
+           class="editable">
+           Premium Widget Pro
+        </p>
+        
+        <p data-sight="price" 
+           data-sight-type="text"
+           data-sight-label="Price"
+           class="editable">
+           $99.99
+        </p>
+    </div>
+
+    <div class="container">
+        <h2>New Format (data-sightedit)</h2>
+        <p data-sightedit='{"id": "tagline", "type": "text", "label": "Company Tagline"}' class="editable">
+            Innovation at its finest!
+        </p>
+    </div>
+
+    <div class="container">
+        <h2>Debug Info</h2>
+        <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+            Loading...
+        </div>
+    </div>
+
+    <!-- Load the built SightEdit library -->
+    <script src="../packages/core/dist/index.js"></script>
+    
+    <script>
+        // Initialize SightEdit
+        console.log('Initializing SightEdit...');
+        
+        // Mock API endpoint for testing
+        const sightEdit = SightEdit.init({
+            endpoint: 'https://httpbin.org/post', // Using httpbin for testing
+            debug: true,
+            mode: 'development',
+            onSave: (data) => {
+                console.log('Save callback:', data);
+                updateDebugInfo('Saved: ' + data.sight + ' = ' + JSON.stringify(data.value));
+            },
+            onError: (error) => {
+                console.error('Error callback:', error);
+                updateDebugInfo('Error: ' + error.message);
+            }
+        });
+
+        // Global toggle function
+        function toggleEditMode() {
+            const instance = SightEdit.getInstance();
+            if (instance) {
+                instance.toggleEditMode();
+            }
+        }
+
+        // Listen for mode changes
+        if (sightEdit) {
+            sightEdit.on('editModeEntered', () => {
+                document.getElementById('mode-indicator').textContent = 'edit';
+                updateDebugInfo('Edit mode entered');
+                console.log('Edit mode entered');
+            });
+
+            sightEdit.on('editModeExited', () => {
+                document.getElementById('mode-indicator').textContent = 'view';
+                updateDebugInfo('Edit mode exited');
+                console.log('Edit mode exited');
+            });
+
+            sightEdit.on('beforeSave', (data) => {
+                updateDebugInfo('Saving: ' + data.sight);
+                console.log('Before save:', data);
+            });
+
+            sightEdit.on('afterSave', (response) => {
+                updateDebugInfo('Save completed successfully');
+                console.log('After save:', response);
+            });
+
+            sightEdit.on('saveError', (error) => {
+                updateDebugInfo('Save error: ' + error.message);
+                console.error('Save error:', error);
+            });
+        }
+
+        function updateDebugInfo(message) {
+            const debugElement = document.getElementById('debug-info');
+            const timestamp = new Date().toLocaleTimeString();
+            debugElement.innerHTML = `[${timestamp}] ${message}<br>` + debugElement.innerHTML;
+            
+            // Keep only last 10 messages
+            const lines = debugElement.innerHTML.split('<br>');
+            if (lines.length > 10) {
+                debugElement.innerHTML = lines.slice(0, 10).join('<br>');
+            }
+        }
+
+        // Initial debug info
+        updateDebugInfo('SightEdit initialized successfully');
+        console.log('SightEdit instance:', sightEdit);
+        console.log('Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(sightEdit)));
+    </script>
+</body>
+</html>

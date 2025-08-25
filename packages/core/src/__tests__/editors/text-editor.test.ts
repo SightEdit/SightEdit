@@ -1,20 +1,27 @@
 import { TextEditor } from '../../editors/text';
 import { EditorConfig } from '../../types';
 
+
 // Mock debounce utility
 jest.mock('../../utils/dom', () => ({
   debounce: jest.fn((fn) => fn),
-  addClass: jest.fn(),
-  removeClass: jest.fn(),
-  hasClass: jest.fn()
+  addClass: jest.fn((element: HTMLElement, className: string) => {
+    element.classList.add(className);
+  }),
+  removeClass: jest.fn((element: HTMLElement, className: string) => {
+    element.classList.remove(className);
+  }),
+  hasClass: jest.fn((element: HTMLElement, className: string) => {
+    return element.classList.contains(className);
+  })
 }));
-
 describe('TextEditor', () => {
   let editor: TextEditor;
   let element: HTMLElement;
   let config: EditorConfig;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     document.body.innerHTML = '<p id="test-element">Initial text content</p>';
     element = document.getElementById('test-element')!;
     
@@ -32,6 +39,12 @@ describe('TextEditor', () => {
       setEnd: jest.fn()
     } as any));
 
+    // Mock element.focus
+    element.focus = jest.fn();
+
+    // Mock requestAnimationFrame
+    global.requestAnimationFrame = jest.fn((callback) => setTimeout(callback, 0));
+
     jest.spyOn(window, 'getSelection').mockImplementation(() => ({
       removeAllRanges: jest.fn(),
       addRange: jest.fn()
@@ -41,6 +54,7 @@ describe('TextEditor', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     document.body.innerHTML = '';
     document.head.querySelectorAll('style[id*="sight-edit"]').forEach(el => el.remove());
     jest.clearAllMocks();
@@ -330,8 +344,10 @@ describe('TextEditor', () => {
 
     it('should clean up editor and remove attributes', () => {
       const superDestroySpy = jest.spyOn(Object.getPrototypeOf(Object.getPrototypeOf(editor)), 'destroy');
-      element.setAttribute('contenteditable', 'true');
-      element.setAttribute('spellcheck', 'true');
+      
+      // Verify attributes are initially set by render()
+      expect(element.getAttribute('contenteditable')).toBe('false');
+      expect(element.getAttribute('spellcheck')).toBe('true');
       
       editor.destroy();
       

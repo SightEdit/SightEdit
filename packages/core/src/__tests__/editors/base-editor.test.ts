@@ -392,7 +392,7 @@ describe('BaseEditor', () => {
     });
 
     it('should handle Escape key to cancel editing', () => {
-      const stopEditingSpy = jest.spyOn(editor, 'testStopEditing');
+      const stopEditingSpy = jest.spyOn(editor as any, 'stopEditing');
       
       const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
       keyboardElement.dispatchEvent(escapeEvent);
@@ -401,7 +401,7 @@ describe('BaseEditor', () => {
     });
 
     it('should handle Enter key to save editing', () => {
-      const stopEditingSpy = jest.spyOn(editor, 'testStopEditing');
+      const stopEditingSpy = jest.spyOn(editor as any, 'stopEditing');
       editor.config.mode = 'modal'; // Not inline mode
       
       const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
@@ -411,7 +411,7 @@ describe('BaseEditor', () => {
     });
 
     it('should allow Enter in inline mode if line breaks allowed', () => {
-      const stopEditingSpy = jest.spyOn(editor, 'testStopEditing');
+      const stopEditingSpy = jest.spyOn(editor as any, 'stopEditing');
       editor.config.mode = 'inline';
       // BaseEditor.allowsLineBreaks() returns false by default
       
@@ -436,7 +436,7 @@ describe('BaseEditor', () => {
 
   describe('destroy', () => {
     it('should clean up editor', () => {
-      const stopEditingSpy = jest.spyOn(editor, 'testStopEditing');
+      const stopEditingSpy = jest.spyOn(editor as any, 'stopEditing');
       const removeListenersSpy = jest.spyOn(editor, 'removeAllListeners');
       
       editor.destroy();

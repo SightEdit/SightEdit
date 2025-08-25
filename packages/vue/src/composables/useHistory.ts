@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useSightEdit } from '../index';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
+import { SightEditKey } from '../keys';
 
 export interface HistoryEntry {
   id: string;
@@ -17,7 +17,11 @@ export interface UseHistoryOptions {
 }
 
 export function useHistory(options: UseHistoryOptions = {}) {
-  const { state } = useSightEdit();
+  const sightEditApi = inject(SightEditKey);
+  if (!sightEditApi) {
+    throw new Error('useHistory must be used within an app with SightEditPlugin installed');
+  }
+  const { state } = sightEditApi;
   const history = ref<HistoryEntry[]>([]);
   const currentIndex = ref(-1);
   const maxEntries = options.maxEntries || 50;

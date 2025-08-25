@@ -1,7 +1,4 @@
 import { DetectedElement, ElementType, EditMode, ElementContext, ElementSchema } from './types';
-import { SafeJSONParser } from './utils/safe-json';
-import { ValidationEngine } from './utils/validation-engine';
-import { parseSightEditAttribute, ParsedConfig } from './parser';
 
 export type { DetectedElement };
 
@@ -17,12 +14,12 @@ export class ElementDetector {
   static scan(root: HTMLElement = document.body): DetectedElement[] {
     const elements: DetectedElement[] = [];
     
-    // Support both old format (data-sight) and new format (data-sightedit)
-    const oldFormatElements = root.querySelectorAll('[data-sight]');
-    const newFormatElements = root.querySelectorAll('[data-sightedit]');
+    // Support both data-sight and data-sightedit attributes
+    const sightElements = root.querySelectorAll('[data-sight]');
+    const sightEditElements = root.querySelectorAll('[data-sightedit]');
 
-    // Process old format elements
-    oldFormatElements.forEach(element => {
+    // Process data-sight elements (legacy format)
+    sightElements.forEach(element => {
       if (element instanceof HTMLElement && !element.dataset.sightEditReady) {
         const detected = this.detectElement(element);
         if (detected) {
@@ -31,8 +28,8 @@ export class ElementDetector {
       }
     });
 
-    // Process new format elements
-    newFormatElements.forEach(element => {
+    // Process data-sightedit elements (new format)  
+    sightEditElements.forEach(element => {
       if (element instanceof HTMLElement && !element.dataset.sightEditReady) {
         const detected = this.detectElementNewFormat(element);
         if (detected) {
@@ -51,43 +48,43 @@ export class ElementDetector {
     const sightEditValue = element.dataset.sightedit;
     if (!sightEditValue) return null;
 
-    // Parse the new format
-    const config = parseSightEditAttribute(sightEditValue);
-    if (!config) {
-      console.warn('Invalid data-sightedit value:', sightEditValue);
-      return null;
-    }
-
+    // Parse the configuration
+    const config = this.parseSimpleConfig(sightEditValue);
     const type = config.type || this.detectType(element);
-    const mode = config.mode as EditMode || this.detectMode(element);
+    
+    // For mode detection, create a temporary element dataset to use existing logic
+    const tempElement = element.cloneNode(true) as HTMLElement;
+    if (config.type) {
+      tempElement.dataset.sightType = config.type;
+    }
+    if (config.mode) {
+      tempElement.dataset.sightMode = config.mode;
+    }
+    
+    const mode = config.mode as EditMode || this.detectMode(tempElement);
     const context = this.extractContext(element);
     
-    // Build schema from parsed config
-    const schema: ElementSchema = {
-      type,
-      label: config.label,
-      placeholder: config.placeholder,
-      required: config.required,
-      minLength: config.minLength,
-      maxLength: config.maxLength,
-      min: config.min,
-      max: config.max,
-      options: config.options
-    };
-
-    // Apply validation if specified
-    if (config.validation) {
-      schema.validation = (value: any) => {
-        const result = ValidationEngine.validate(value, config.validation);
-        if (!result.isValid) {
-          throw new Error(result.errors.join(', '));
+    // Build schema from config and merge with element data attributes
+    const schema: ElementSchema = { type };
+    
+    // Copy all config properties to schema (except type, id, mode)
+    Object.keys(config).forEach(key => {
+      if (!['type', 'id', 'mode'].includes(key)) {
+        (schema as any)[key] = config[key];
+      }
+    });
+    
+    // Also extract from data attributes for backward compatibility
+    const extractedSchema = this.extractSchema(element);
+    if (extractedSchema) {
+      Object.assign(schema, extractedSchema);
+      // Config overrides data attributes
+      Object.keys(config).forEach(key => {
+        if (!['type', 'id', 'mode'].includes(key)) {
+          (schema as any)[key] = config[key];
         }
-        return result.sanitizedValue;
-      };
+      });
     }
-
-    // Merge config into context
-    context.config = config;
 
     return {
       element,
@@ -98,6 +95,84 @@ export class ElementDetector {
       context,
       schema: Object.keys(schema).length > 1 ? schema : undefined
     };
+  }
+
+  /**
+   * Simple config parser for data-sightedit attribute
+   * Supports formats:
+   * - JSON: {"type":"text","id":"name"}
+   * - Simple: text#id
+   * - Bracket: text#id[required,maxLength:100]
+   * - Key-value: type=text;id=name
+   */
+  private static parseSimpleConfig(value: string): any {
+    // If it clearly looks like JSON (starts and ends with braces), try JSON first
+    if (value.trim().startsWith('{') && value.trim().endsWith('}')) {
+      try {
+        return JSON.parse(value);
+      } catch {
+        // Fall through to other parsing methods
+      }
+    }
+    
+    // Handle bracket notation: text#id[required,maxLength:100]
+    const bracketMatch = value.match(/^([^\[#]+)(?:#([^\[]+))?(?:\[([^\]]+)\])?$/);
+    if (bracketMatch) {
+      const [, type, id, params] = bracketMatch;
+      const config: any = { type: type.trim() };
+      
+      if (id) {
+        config.id = id.trim();
+      }
+      
+      if (params) {
+        // Parse parameters: required,maxLength:100,placeholder:"Enter text"
+        const paramPairs = params.split(',');
+        for (const param of paramPairs) {
+          if (param.includes(':')) {
+            const [key, val] = param.split(':').map(s => s.trim());
+            if (key && val) {
+              // Handle quoted values
+              let parsedVal = val.replace(/^["']|["']$/g, '');
+              // Convert numbers and booleans
+              if (parsedVal === 'true') parsedVal = true as any;
+              else if (parsedVal === 'false') parsedVal = false as any;
+              else if (!isNaN(Number(parsedVal)) && parsedVal !== '') parsedVal = Number(parsedVal) as any;
+              config[key] = parsedVal;
+            }
+          } else {
+            // Boolean flag like "required"
+            config[param.trim()] = true;
+          }
+        }
+      }
+      
+      return config;
+    }
+    
+    // Handle simple format: text#id
+    const simpleMatch = value.match(/^([^#]+)(?:#(.+))?$/);
+    if (simpleMatch) {
+      const [, type, id] = simpleMatch;
+      const config: any = { type: type.trim() };
+      if (id) {
+        config.id = id.trim();
+      }
+      return config;
+    }
+    
+    // Fall back to key=value parsing
+    const config: any = {};
+    const pairs = value.split(';');
+    
+    for (const pair of pairs) {
+      const [key, val] = pair.split('=').map(s => s.trim());
+      if (key && val) {
+        config[key] = val === 'true' ? true : val === 'false' ? false : val;
+      }
+    }
+    
+    return config;
   }
 
   /**
@@ -145,6 +220,7 @@ export class ElementDetector {
     if (tagName === 'select') return 'select';
     if (tagName === 'input') {
       const type = element.getAttribute('type');
+      if (type === 'file') return 'file';
       if (type === 'color') return 'color';
       if (type === 'date' || type === 'datetime-local') return 'date';
       if (type === 'number') return 'number';
@@ -163,9 +239,15 @@ export class ElementDetector {
       if (this.TYPE_PATTERNS.date.test(content)) return 'date';
       if (this.TYPE_PATTERNS.number.test(content) && content.length < 20) return 'number';
       
-      // Check if content is valid JSON
-      if (SafeJSONParser.tryParse(content) !== null) {
-        return 'json';
+      // Simple JSON detection
+      if ((content.startsWith('{') && content.endsWith('}')) || 
+          (content.startsWith('[') && content.endsWith(']'))) {
+        try {
+          JSON.parse(content);
+          return 'json';
+        } catch {
+          // Not JSON, continue
+        }
       }
     }
 
@@ -180,7 +262,11 @@ export class ElementDetector {
 
     const type = this.detectType(element);
     
-    if (type === 'richtext' || type === 'collection' || type === 'json') {
+    if (type === 'richtext' || type === 'json') {
+      return 'modal';
+    }
+    
+    if (type === 'collection') {
       return 'modal';
     }
     
@@ -198,6 +284,7 @@ export class ElementDetector {
   static extractContext(element: HTMLElement): ElementContext {
     const context: ElementContext = {};
 
+    // Look for parent record context
     let current = element.parentElement;
     while (current) {
       if (current.dataset.sightRecord) {
@@ -205,15 +292,20 @@ export class ElementDetector {
         break;
       }
       if (current.dataset.sightContext) {
-        const parsed = SafeJSONParser.tryParse(current.dataset.sightContext);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          Object.assign(context, parsed);
-          break;
+        try {
+          const parsed = JSON.parse(current.dataset.sightContext);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            Object.assign(context, parsed);
+            break;
+          }
+        } catch {
+          // Invalid JSON, skip
         }
       }
       current = current.parentElement;
     }
 
+    // Extract context from URL
     const url = new URL(window.location.href);
     const pathParts = url.pathname.split('/').filter(Boolean);
     
@@ -225,6 +317,7 @@ export class ElementDetector {
       context.recordId = context.recordId || pathParts[1];
     }
 
+    // Extract section context
     const section = element.closest('section, article, header, footer, aside');
     if (section) {
       context.section = section.tagName.toLowerCase();
@@ -235,10 +328,12 @@ export class ElementDetector {
       }
     }
 
+    // Extract item index for collections
     if (element.dataset.sightItem) {
       context.index = parseInt(element.dataset.sightItem, 10);
     }
 
+    // Extract metadata
     const metaKeys = Object.keys(element.dataset).filter(key => key.startsWith('sightMeta'));
     if (metaKeys.length > 0) {
       context.metadata = {};
@@ -255,6 +350,7 @@ export class ElementDetector {
     const type = this.detectType(element);
     const schema: ElementSchema = { type };
 
+    // Extract from data-sight-* attributes (legacy format)
     if (element.dataset.sightLabel) {
       schema.label = element.dataset.sightLabel;
     }
@@ -283,34 +379,70 @@ export class ElementDetector {
       schema.max = parseFloat(element.dataset.sightMax);
     }
 
+    if (element.dataset.sightMaxSize) {
+      schema.maxSize = element.dataset.sightMaxSize;
+    }
+
+    if (element.dataset.sightAspectRatio) {
+      schema.aspectRatio = element.dataset.sightAspectRatio;
+    }
+
+    if (element.dataset.sightStep) {
+      schema.step = parseFloat(element.dataset.sightStep);
+    }
+
+    if (element.dataset.sightFormat) {
+      schema.format = element.dataset.sightFormat;
+    }
+
+    if (element.dataset.sightCurrency) {
+      schema.currency = element.dataset.sightCurrency;
+    }
+
+    if (element.dataset.sightToolbar) {
+      try {
+        schema.toolbar = JSON.parse(element.dataset.sightToolbar);
+      } catch {
+        schema.toolbar = element.dataset.sightToolbar.split(',').map(t => t.trim());
+      }
+    }
+
+    if (element.dataset.sightCrop === 'true') {
+      schema.crop = true;
+    }
+
+    if (element.dataset.sightMultiple === 'true') {
+      schema.multiple = true;
+    }
+
+    if (element.dataset.sightItemType) {
+      schema.itemType = element.dataset.sightItemType;
+    }
+
+    if (element.dataset.sightMinItems) {
+      schema.minItems = parseInt(element.dataset.sightMinItems, 10);
+    }
+
+    if (element.dataset.sightMaxItems) {
+      schema.maxItems = parseInt(element.dataset.sightMaxItems, 10);
+    }
+
+    if (element.dataset.sightIncludeTime === 'true') {
+      schema.includeTime = true;
+    }
+
     if (element.dataset.sightOptions) {
-      const parsed = SafeJSONParser.tryParse(element.dataset.sightOptions);
-      if (parsed && Array.isArray(parsed)) {
-        schema.options = parsed;
-      } else {
+      try {
+        const parsed = JSON.parse(element.dataset.sightOptions);
+        if (parsed && Array.isArray(parsed)) {
+          schema.options = parsed;
+        }
+      } catch {
         // Fallback to comma-separated string parsing
         schema.options = element.dataset.sightOptions.split(',').map(opt => ({
           value: opt.trim(),
           label: opt.trim()
         }));
-      }
-    }
-
-    if (element.dataset.sightValidation) {
-      try {
-        // Use secure validation engine instead of Function constructor
-        const validationSchema = ValidationEngine.parseValidationString(element.dataset.sightValidation);
-        if (validationSchema) {
-          schema.validation = (value: any) => {
-            const result = ValidationEngine.validate(value, validationSchema);
-            if (!result.isValid) {
-              throw new Error(result.errors.join(', '));
-            }
-            return result.sanitizedValue;
-          };
-        }
-      } catch (error) {
-        console.warn('Invalid validation string:', error);
       }
     }
 
@@ -320,7 +452,7 @@ export class ElementDetector {
   private static isValidType(type: string): boolean {
     const validTypes = [
       'text', 'richtext', 'image', 'link', 'collection',
-      'color', 'date', 'select', 'number', 'json', 'markdown', 'custom'
+      'color', 'date', 'select', 'number', 'json'
     ];
     return validTypes.includes(type);
   }

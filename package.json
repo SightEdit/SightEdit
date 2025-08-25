@@ -32,7 +32,10 @@
     "docs:react": "cd packages/react && npm run docs",
     "docs:vue": "cd packages/vue && npm run docs",
     "docs:all": "npm run docs:core && npm run docs:react && npm run docs:vue",
-    "docs:serve": "npx serve docs"
+    "docs:serve": "npx serve docs",
+    "test:zero-errors": "node test-zero-errors.js",
+    "test:zero-errors:runner": "node run-zero-error-test.js",
+    "test:zero-errors:verify": "node test-setup-verify.js"
   },
   "workspaces": [
     "packages/*",

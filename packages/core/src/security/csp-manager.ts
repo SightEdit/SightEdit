@@ -203,6 +203,12 @@ export class CSPManager extends EventEmitter {
    * Apply CSP to the current document
    */
   private async applyCSP(): Promise<void> {
+    // Skip CSP application in test environment if document is not properly available
+    if (this.config.environment === 'test' && (!document || !document.head || !document.createElement)) {
+      logger.info('CSP application skipped in test environment');
+      return;
+    }
+
     const policy = await this.generatePolicyString();
     
     // Remove existing CSP meta tag

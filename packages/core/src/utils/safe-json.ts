@@ -144,6 +144,31 @@ export class SafeJSONParser {
   }
 
   /**
+   * Silent try parsing JSON for type detection - never logs warnings
+   */
+  static tryParseSilent<T = any>(jsonString: string, options: JSONValidationOptions = {}): T | null {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return null;
+    }
+
+    const maxSize = options.maxSize || this.DEFAULT_MAX_SIZE;
+    if (jsonString.length > maxSize) {
+      return null;
+    }
+
+    const sanitizedString = this.sanitizeJSONString(jsonString);
+    
+    try {
+      const parsed = JSON.parse(sanitizedString);
+      this.validateParsedJSON(parsed, options);
+      return parsed !== null && parsed !== undefined ? parsed : null;
+    } catch {
+      // Silent failure - no logging for type detection
+      return null;
+    }
+  }
+
+  /**
    * Stringify with safety checks
    */
   static stringify(
@@ -167,7 +192,10 @@ export class SafeJSONParser {
    */
   private static sanitizeJSONString(jsonString: string): string {
     return jsonString
-      // Remove null bytes and control characters (except newlines, tabs, carriage returns)
+      // Replace null byte escape sequences in strings with empty string
+      .replace(/\\x00/g, '')
+      .replace(/\\u0000/g, '')
+      // Remove actual null bytes and control characters (except newlines, tabs, carriage returns)
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       // Normalize line endings
       .replace(/\r\n/g, '\n')

@@ -12,6 +12,7 @@ export interface EditorService {
 export class EditorServiceImpl implements EditorService {
   private readonly activeEditors = new WeakMap<Element, Editor>();
   private readonly editorInstances = new Set<Editor>();
+  private readonly pendingCreations = new WeakMap<Element, Promise<Editor>>();
 
   constructor(
     private readonly editorFactory: EditorFactory,
@@ -25,6 +26,26 @@ export class EditorServiceImpl implements EditorService {
       return existing;
     }
 
+    // Check if creation is already in progress for this element
+    const pending = this.pendingCreations.get(element);
+    if (pending) {
+      return pending;
+    }
+
+    // Start creation process
+    const creationPromise = this.doCreateEditor(type, element);
+    this.pendingCreations.set(element, creationPromise);
+
+    try {
+      const editor = await creationPromise;
+      return editor;
+    } finally {
+      // Clean up pending tracking
+      this.pendingCreations.delete(element);
+    }
+  }
+
+  private async doCreateEditor(type: string, element: Element): Promise<Editor> {
     try {
       // Create editor using factory
       const editor = await this.editorFactory.create(type, element);

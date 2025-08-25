@@ -10,6 +10,7 @@ jest.mock('dompurify', () => ({
     if (html.includes('javascript:')) {
       return html.replace(/javascript:[^"'\s]*/gi, '');
     }
+    // Return the HTML as-is if no threats detected (for safe HTML test)
     return html;
   })
 }));
@@ -181,12 +182,15 @@ describe('HTMLSanitizer', () => {
   });
 
   describe('isHtmlSafe', () => {
-    it('should return true for safe HTML', () => {
-      const safeHtml = '<p>Safe content</p>';
+    it("should return true for safe HTML", () => {
+      // Reset the DOMPurify mock to ensure clean state
+      const DOMPurify = require('dompurify');
+      DOMPurify.sanitize.mockImplementation((html: string) => html);
+      
+      const safeHtml = "<p>Safe content</p>";
       
       expect(HTMLSanitizer.isHtmlSafe(safeHtml)).toBe(true);
     });
-
     it('should return false for unsafe HTML', () => {
       const DOMPurify = require('dompurify');
       DOMPurify.sanitize.mockReturnValue('<p>Sanitized content</p>');

@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useSightEdit } from '../index';
+import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue';
+import { SightEditKey } from '../keys';
 
 export interface UseAutoSaveOptions {
   interval?: number;
@@ -10,7 +10,11 @@ export interface UseAutoSaveOptions {
 }
 
 export function useAutoSave(options: UseAutoSaveOptions = {}) {
-  const { state } = useSightEdit();
+  const sightEditApi = inject(SightEditKey);
+  if (!sightEditApi) {
+    throw new Error('useAutoSave must be used within an app with SightEditPlugin installed');
+  }
+  const { state } = sightEditApi;
   const isSaving = ref(false);
   const lastSaved = ref<Date | null>(null);
   const pendingChanges = ref<Map<string, any>>(new Map());

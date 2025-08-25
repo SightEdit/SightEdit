@@ -206,7 +206,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<div data-sightedit="${config}">Text</div>`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<div data-sightedit="${escapedConfig}">Text</div>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('text');
@@ -236,7 +238,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<div data-sightedit="${config}"><p>Rich</p></div>`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<div data-sightedit="${escapedConfig}"><p>Rich</p></div>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('richtext');
@@ -255,7 +259,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<img data-sightedit="${config}" src="test.jpg">`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<img data-sightedit="${escapedConfig}" src="test.jpg">`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('image');
@@ -275,7 +281,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<span data-sightedit="${config}">42</span>`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<span data-sightedit="${escapedConfig}">42</span>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('number');
@@ -306,7 +314,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<span data-sightedit="${config}">2024-01-01</span>`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<span data-sightedit="${escapedConfig}">2024-01-01</span>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('date');
@@ -324,7 +334,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<span data-sightedit='${config}'>A</span>`;
+        // Handle single quotes by using double quote escaping
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<span data-sightedit="${escapedConfig}">A</span>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('select');
@@ -383,7 +395,9 @@ describe('Editor Type Tests', () => {
       ];
 
       configs.forEach(config => {
-        container.innerHTML = `<span data-sightedit="${config}">#ff0000</span>`;
+        // Properly escape quotes for HTML attributes
+        const escapedConfig = config.replace(/"/g, '&quot;');
+        container.innerHTML = `<span data-sightedit="${escapedConfig}">#ff0000</span>`;
         const elements = ElementDetector.scan(container);
         expect(elements).toHaveLength(1);
         expect(elements[0].type).toBe('color');

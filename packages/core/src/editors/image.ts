@@ -14,7 +14,12 @@ export class ImageEditor extends BaseEditor {
     if (this.element.tagName === 'IMG') {
       return (this.element as HTMLImageElement).src;
     }
-    return this.element.style.backgroundImage.replace(/url\(['"]?(.+?)['"]?\)/, '$1') || '';
+    const bgImage = this.element.style.backgroundImage;
+    if (!bgImage || bgImage === 'none') return '';
+    
+    // Handle various URL formats: url("..."), url('...'), url(...)
+    const match = bgImage.match(/url\((['"]?)(.*?)\1\)/);
+    return match ? match[2] : '';
   }
 
   applyValue(value: string): void {
@@ -113,6 +118,20 @@ export class ImageEditor extends BaseEditor {
     cancelBtn.addEventListener('click', () => {
       this.closeModal();
       this.stopEditing(false);
+    });
+
+    // Add keyboard event handlers
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.setValue(input.value);
+        this.closeModal();
+        this.stopEditing(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeModal();
+        this.stopEditing(false);
+      }
     });
 
     content.appendChild(input);

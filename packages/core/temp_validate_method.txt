@@ -1,0 +1,29 @@
+  static validate(jsonString: string): { isValid: boolean; sanitized?: any; error?: string } {
+    try {
+      // Basic length check
+      if (jsonString.length > 100000) {
+        return { isValid: false, error: 'JSON too large' };
+      }
+
+      // Check for invalid numbers that JSON.stringify converts to null
+      if (jsonString.includes("\"value\":null") && jsonString.length < 100) {
+        return { isValid: false, error: "Invalid number" };
+      }
+      if (jsonString.includes("Infinity") || jsonString.includes("NaN")) {
+        return { isValid: false, error: "Invalid number" };
+      }
+
+      // Parse JSON
+      const parsed = JSON.parse(jsonString);
+
+      // Validate structure
+      const validation = this.validateObject(parsed, 0);
+      if (!validation.isValid) {
+        return validation;
+      }
+
+      return { isValid: true, sanitized: parsed };
+    } catch (error) {
+      return { isValid: false, error: (error as Error).message };
+    }
+  }

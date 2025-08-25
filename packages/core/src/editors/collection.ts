@@ -18,6 +18,8 @@ export class CollectionEditor extends BaseEditor {
   constructor(element: HTMLElement, options?: EditorOptions) {
     super(element, options);
     this.container = element;
+    this.type = 'collection';
+    this.items = [];
     this.analyzeCollection();
   }
 
@@ -62,24 +64,35 @@ export class CollectionEditor extends BaseEditor {
   }
 
   private analyzeCollection(): void {
-    const items = this.element.querySelectorAll('[data-sight-item]');
-    
-    items.forEach((item, index) => {
-      if (item instanceof HTMLElement) {
-        const id = item.dataset.sightItem || `item-${index}`;
-        const data = this.extractItemData(item);
-        
-        this.items.push({
-          id,
-          element: item,
-          data
-        });
-        
-        if (index === 0 && !this.template) {
-          this.template = item.cloneNode(true) as HTMLElement;
-        }
+    try {
+      const items = this.element.querySelectorAll('[data-sight-item]');
+      
+      if (items.length === 0) {
+        // If no data-sight-item elements, treat as simple text collection
+        this.items = [];
+        return;
       }
-    });
+      
+      items.forEach((item, index) => {
+        if (item instanceof HTMLElement) {
+          const id = item.dataset.sightItem || `item-${index}`;
+          const data = this.extractItemData(item);
+          
+          this.items.push({
+            id,
+            element: item,
+            data
+          });
+          
+          if (index === 0 && !this.template) {
+            this.template = item.cloneNode(true) as HTMLElement;
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to analyze collection:', error);
+      this.items = [];
+    }
   }
 
   private extractItemData(item: HTMLElement): Record<string, any> {
@@ -537,6 +550,10 @@ export class CollectionEditor extends BaseEditor {
   }
 
   extractValue(): any {
+    if (!this.items || this.items.length === 0) {
+      // Return the text content as fallback for simple collections
+      return this.element.textContent || '';
+    }
     return this.items.map(item => item.data);
   }
 

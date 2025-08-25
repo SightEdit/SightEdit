@@ -118,7 +118,7 @@ export function useEditorState(options: UseEditorStateOptions): UseEditorStateRe
     }
 
     try {
-      const result = await editor.value.validate(value.value);
+      const result = editor.value.validate(value.value);
       
       // Handle both simple (boolean | string) and advanced (ValidationResult) validation
       if (typeof result === 'boolean') {
@@ -149,10 +149,10 @@ export function useEditorState(options: UseEditorStateOptions): UseEditorStateRe
         }
         
         return validationResultObj;
-      } else {
+      } else if (result && typeof result === 'object' && 'isValid' in result) {
         // It's a ValidationResult object
         isValid.value = result.isValid;
-        errors.value = result.errors;
+        errors.value = result.errors || [];
         validationResult.value = result;
 
         if (onValidate) {
@@ -160,6 +160,14 @@ export function useEditorState(options: UseEditorStateOptions): UseEditorStateRe
         }
 
         return result;
+      } else {
+        // Fallback for unknown result type
+        const fallbackResult: ValidationResult = {
+          isValid: true,
+          errors: []
+        };
+        validationResult.value = fallbackResult;
+        return fallbackResult;
       }
     } catch (error) {
       const result: ValidationResult = {
@@ -281,7 +289,7 @@ export function useEditorState(options: UseEditorStateOptions): UseEditorStateRe
           element.setAttribute('data-validation', JSON.stringify(validation));
         }
 
-        editor.value = await sightEdit.value.createEditor(element, type);
+        editor.value = sightEdit.value.createEditor(element, type as ElementType);
         
         // Initial validation
         await validate();

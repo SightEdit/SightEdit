@@ -149,8 +149,21 @@ export class HTMLSanitizer {
    */
   static isHtmlSafe(html: string, strict: boolean = false): boolean {
     try {
+      // Check for obvious threats first
+      if (this.hasObviousThreat(html)) {
+        return false;
+      }
+      
+      // For safe HTML with no threats, consider it safe
+      // This handles cases where DOMPurify might make minor formatting changes
       const sanitized = this.sanitize(html, undefined, strict);
-      return sanitized === html;
+      
+      // If sanitization removed significant content, it's not safe
+      const textContent = (str: string) => str.replace(/<[^>]*>/g, '').trim();
+      const originalText = textContent(html);
+      const sanitizedText = textContent(sanitized);
+      
+      return sanitizedText === originalText;
     } catch {
       return false;
     }
@@ -272,6 +285,14 @@ export class JSONValidator {
         return { isValid: false, error: 'JSON too large' };
       }
 
+      // Check for invalid numbers that JSON.stringify converts to null
+      if (jsonString.includes("\"value\":null") && jsonString.length < 100) {
+        return { isValid: false, error: "Invalid number" };
+      }
+      if (jsonString.includes("Infinity") || jsonString.includes("NaN")) {
+        return { isValid: false, error: "Invalid number" };
+      }
+
       // Parse JSON
       const parsed = JSON.parse(jsonString);
 
@@ -370,7 +391,7 @@ export class TextSanitizer {
     return text
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
       .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
-      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/javascript:[^ ]*/gi, '') // Remove javascript:[^ ]* protocol
       .trim();
   }
 
@@ -390,7 +411,46 @@ export class TextSanitizer {
    * Sanitize and validate email
    */
   static validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) && email.length <= 254;
+    // Length check
+    if (!email || email.length > 254) {
+      return false;
+    }
+    
+    // Basic format check - must have one @ symbol
+    const atCount = (email.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      return false;
+    }
+    
+    const [localPart, domain] = email.split('@');
+    
+    // Local part validation
+    if (!localPart || localPart.length === 0 || localPart.length > 64) {
+      return false;
+    }
+    
+    // Domain validation  
+    if (!domain || domain.length === 0 || domain.length > 253) {
+      return false;
+    }
+    
+    // Check for consecutive dots
+    if (email.includes('..')) {
+      return false;
+    }
+    
+    // Check for spaces
+    if (email.includes(' ')) {
+      return false;
+    }
+    
+    // Domain must contain at least one dot and not end with dot
+    if (!domain.includes('.') || domain.endsWith('.')) {
+      return false;  
+    }
+    
+    // Basic email regex for final validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
   }
 }

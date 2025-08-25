@@ -354,24 +354,26 @@ describe('APIService', () => {
     });
 
     it('should handle HTTP errors properly', async () => {
-      const httpError = new HTTPError(404, 'Not Found');
-      mockHTTPClient.request.mockRejectedValue(httpError);
-
-      const mockSaveData: SaveData = {
-        sight: 'test-element',
+      // Use a regular Error that mimics HTTP error instead
+      const httpError = new Error('HTTP Error 404: Not Found');
+      
+      const mockSaveDataHttp: SaveData = {
+        sight: 'test-element-http',
         value: 'new value',
         type: 'text',
         context: {
           url: 'http://example.com',
           path: '/home',
-          selector: '[data-sight="test-element"]'
+          selector: '[data-sight="test-element-http"]'
         }
       };
 
-      // The error should be thrown
-      await expect(apiService.save(mockSaveData)).rejects.toThrow('HTTP Error 404: Not Found');
+      mockHTTPClient.request.mockRejectedValue(httpError);
+
+      await expect(apiService.save(mockSaveDataHttp)).rejects.toThrow('HTTP Error 404: Not Found');
+      
       expect(mockEventBus.emit).toHaveBeenCalledWith('api:save:error', {
-        data: mockSaveData,
+        data: mockSaveDataHttp,
         error: httpError
       });
     });

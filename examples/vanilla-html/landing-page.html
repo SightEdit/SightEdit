@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaaS Landing Page - SightEdit Example</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .hero-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .card-hover {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    .sight-edit-indicator {
+      outline: 2px dashed transparent;
+      transition: outline-color 0.2s;
+    }
+    .sight-edit-mode .sight-edit-indicator {
+      outline-color: #3b82f6;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-sm fixed w-full top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center">
+          <img 
+            data-sightedit="image#logo"
+            src="https://via.placeholder.com/120x40/667eea/ffffff?text=Logo"
+            alt="Company Logo"
+            class="sight-edit-indicator h-8 w-auto"
+          >
+        </div>
+        <div class="hidden md:block">
+          <div class="ml-10 flex items-baseline space-x-4">
+            <a href="#features" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Features</a>
+            <a href="#pricing" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Pricing</a>
+            <a href="#about" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">About</a>
+            <a href="#contact" class="bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-md hover:bg-blue-700">
+              Get Started
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="gradient-bg hero-pattern pt-24 pb-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h1 
+          data-sightedit="text#hero-title[required,maxLength:80]"
+          class="sight-edit-indicator text-4xl md:text-6xl font-bold text-white mb-6"
+        >
+          Build Amazing Products Faster
+        </h1>
+        <p 
+          data-sightedit="richtext#hero-description[required,maxLength:300]"
+          class="sight-edit-indicator text-xl text-gray-100 mb-8 max-w-3xl mx-auto"
+        >
+          The ultimate platform for teams who want to create, collaborate, and ship products that users love. Get started in minutes, not hours.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <button 
+            data-sightedit="text#cta-primary[required,maxLength:30]"
+            class="sight-edit-indicator bg-white text-blue-600 px-8 py-3 rounded-md text-lg font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Start Free Trial
+          </button>
+          <button 
+            data-sightedit="text#cta-secondary[maxLength:30]"
+            class="sight-edit-indicator border-2 border-white text-white px-8 py-3 rounded-md text-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
+          >
+            Watch Demo
+          </button>
+        </div>
+        <p 
+          data-sightedit="text#hero-note[maxLength:100]"
+          class="sight-edit-indicator text-gray-200 text-sm mt-4"
+        >
+          No credit card required • 14-day free trial • Cancel anytime
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 
+          data-sightedit="text#features-title[required,maxLength:60]"
+          class="sight-edit-indicator text-3xl md:text-4xl font-bold text-gray-900 mb-4"
+        >
+          Everything You Need to Succeed
+        </h2>
+        <p 
+          data-sightedit="text#features-subtitle[maxLength:200]"
+          class="sight-edit-indicator text-xl text-gray-600 max-w-3xl mx-auto"
+        >
+          Powerful features designed to streamline your workflow and boost productivity
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-1">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">🚀</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            Lightning Fast
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            Built for speed with modern technologies. Load times under 100ms and instant updates across all devices.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-2">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">🔒</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            Enterprise Security
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            Bank-level security with end-to-end encryption, SOC 2 compliance, and 99.9% uptime guarantee.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-3">
+          <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">🎯</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            Smart Analytics
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            Advanced analytics and insights to help you make data-driven decisions and optimize performance.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-4">
+          <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">🌍</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            Global Scale
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            Deployed across 15+ regions worldwide with automatic scaling and load balancing.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-5">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">⚡</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            API First
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            Comprehensive REST and GraphQL APIs with extensive documentation and SDKs for all major platforms.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card-hover text-center p-8 bg-gray-50 rounded-xl" data-sight-record="feature-6">
+          <div class="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span class="text-3xl">🤝</span>
+          </div>
+          <h3 
+            data-sightedit="text#feature-title[required,maxLength:40]"
+            class="sight-edit-indicator text-xl font-semibold text-gray-900 mb-4"
+          >
+            24/7 Support
+          </h3>
+          <p 
+            data-sightedit="text#feature-description[maxLength:200]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            World-class customer support team available around the clock to help you succeed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section -->
+  <section id="pricing" class="py-16 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 
+          data-sightedit="text#pricing-title[required,maxLength:50]"
+          class="sight-edit-indicator text-3xl md:text-4xl font-bold text-gray-900 mb-4"
+        >
+          Simple, Transparent Pricing
+        </h2>
+        <p 
+          data-sightedit="text#pricing-subtitle[maxLength:150]"
+          class="sight-edit-indicator text-xl text-gray-600"
+        >
+          Choose the perfect plan for your team size and needs
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <!-- Basic Plan -->
+        <div class="bg-white rounded-xl shadow-lg p-8" data-sight-record="plan-basic">
+          <div class="text-center mb-8">
+            <h3 
+              data-sightedit="text#plan-name[required,maxLength:20]"
+              class="sight-edit-indicator text-2xl font-bold text-gray-900 mb-2"
+            >
+              Basic
+            </h3>
+            <div class="flex items-center justify-center mb-4">
+              <span class="text-4xl font-bold text-gray-900">$</span>
+              <span 
+                data-sightedit="number#plan-price[required,min:0,max:999]"
+                class="sight-edit-indicator text-6xl font-bold text-gray-900"
+              >
+                9
+              </span>
+              <span class="text-gray-600 ml-2">/month</span>
+            </div>
+            <p 
+              data-sightedit="text#plan-description[maxLength:100]"
+              class="sight-edit-indicator text-gray-600"
+            >
+              Perfect for small teams getting started
+            </p>
+          </div>
+
+          <ul class="space-y-4 mb-8">
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Up to 5 team members
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                10GB storage
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Email support
+              </span>
+            </li>
+          </ul>
+
+          <button class="w-full bg-gray-900 text-white py-3 px-6 rounded-md font-semibold hover:bg-gray-800 transition-colors">
+            Get Started
+          </button>
+        </div>
+
+        <!-- Pro Plan -->
+        <div class="bg-blue-600 rounded-xl shadow-lg p-8 relative" data-sight-record="plan-pro">
+          <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+            <span 
+              data-sightedit="text#plan-badge[maxLength:20]"
+              class="sight-edit-indicator bg-yellow-400 text-gray-900 px-4 py-1 rounded-full text-sm font-semibold"
+            >
+              Most Popular
+            </span>
+          </div>
+          
+          <div class="text-center mb-8">
+            <h3 
+              data-sightedit="text#plan-name[required,maxLength:20]"
+              class="sight-edit-indicator text-2xl font-bold text-white mb-2"
+            >
+              Pro
+            </h3>
+            <div class="flex items-center justify-center mb-4">
+              <span class="text-4xl font-bold text-white">$</span>
+              <span 
+                data-sightedit="number#plan-price[required,min:0,max:999]"
+                class="sight-edit-indicator text-6xl font-bold text-white"
+              >
+                29
+              </span>
+              <span class="text-blue-100 ml-2">/month</span>
+            </div>
+            <p 
+              data-sightedit="text#plan-description[maxLength:100]"
+              class="sight-edit-indicator text-blue-100"
+            >
+              For growing teams that need more power
+            </p>
+          </div>
+
+          <ul class="space-y-4 mb-8">
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-yellow-300 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-white"
+              >
+                Up to 25 team members
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-yellow-300 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-white"
+              >
+                100GB storage
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-yellow-300 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-white"
+              >
+                Priority support
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-yellow-300 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-white"
+              >
+                Advanced analytics
+              </span>
+            </li>
+          </ul>
+
+          <button class="w-full bg-white text-blue-600 py-3 px-6 rounded-md font-semibold hover:bg-gray-100 transition-colors">
+            Get Started
+          </button>
+        </div>
+
+        <!-- Enterprise Plan -->
+        <div class="bg-white rounded-xl shadow-lg p-8" data-sight-record="plan-enterprise">
+          <div class="text-center mb-8">
+            <h3 
+              data-sightedit="text#plan-name[required,maxLength:20]"
+              class="sight-edit-indicator text-2xl font-bold text-gray-900 mb-2"
+            >
+              Enterprise
+            </h3>
+            <div class="flex items-center justify-center mb-4">
+              <span 
+                data-sightedit="text#plan-price-label[maxLength:20]"
+                class="sight-edit-indicator text-4xl font-bold text-gray-900"
+              >
+                Custom
+              </span>
+            </div>
+            <p 
+              data-sightedit="text#plan-description[maxLength:100]"
+              class="sight-edit-indicator text-gray-600"
+            >
+              For large organizations with specific needs
+            </p>
+          </div>
+
+          <ul class="space-y-4 mb-8">
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Unlimited team members
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Unlimited storage
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Dedicated support
+              </span>
+            </li>
+            <li class="flex items-center">
+              <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+              </svg>
+              <span 
+                data-sightedit="text#plan-feature[maxLength:50]"
+                class="sight-edit-indicator text-gray-700"
+              >
+                Custom integrations
+              </span>
+            </li>
+          </ul>
+
+          <button class="w-full bg-gray-900 text-white py-3 px-6 rounded-md font-semibold hover:bg-gray-800 transition-colors">
+            Contact Sales
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="py-16 bg-gray-900">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h2 
+        data-sightedit="text#cta-title[required,maxLength:60]"
+        class="sight-edit-indicator text-3xl md:text-4xl font-bold text-white mb-4"
+      >
+        Ready to Transform Your Workflow?
+      </h2>
+      <p 
+        data-sightedit="text#cta-description[maxLength:200]"
+        class="sight-edit-indicator text-xl text-gray-300 mb-8"
+      >
+        Join thousands of teams who have already improved their productivity with our platform.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <button 
+          data-sightedit="text#cta-button[required,maxLength:30]"
+          class="sight-edit-indicator bg-blue-600 text-white px-8 py-3 rounded-md text-lg font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Start Your Free Trial
+        </button>
+        <button class="border-2 border-gray-300 text-gray-300 px-8 py-3 rounded-md text-lg font-semibold hover:bg-gray-300 hover:text-gray-900 transition-colors">
+          Schedule Demo
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-50 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid md:grid-cols-4 gap-8">
+        <div class="md:col-span-2">
+          <img 
+            data-sightedit="image#footer-logo"
+            src="https://via.placeholder.com/120x40/667eea/ffffff?text=Logo"
+            alt="Company Logo"
+            class="sight-edit-indicator h-8 w-auto mb-4"
+          >
+          <p 
+            data-sightedit="richtext#footer-description[maxLength:250]"
+            class="sight-edit-indicator text-gray-600 mb-4"
+          >
+            We help teams build amazing products faster with our powerful platform and intuitive tools. Trusted by companies worldwide.
+          </p>
+          <div class="flex space-x-4">
+            <a href="#" class="text-gray-400 hover:text-blue-600">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-blue-600">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-blue-600">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-4">Product</h4>
+          <ul class="space-y-2 text-gray-600">
+            <li><a href="#" class="hover:text-blue-600">Features</a></li>
+            <li><a href="#" class="hover:text-blue-600">Pricing</a></li>
+            <li><a href="#" class="hover:text-blue-600">API</a></li>
+            <li><a href="#" class="hover:text-blue-600">Documentation</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-4">Company</h4>
+          <ul class="space-y-2 text-gray-600">
+            <li><a href="#" class="hover:text-blue-600">About</a></li>
+            <li><a href="#" class="hover:text-blue-600">Blog</a></li>
+            <li><a href="#" class="hover:text-blue-600">Careers</a></li>
+            <li><a href="#" class="hover:text-blue-600">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="border-t border-gray-200 mt-12 pt-8">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <p 
+            data-sightedit="text#copyright[maxLength:100]"
+            class="sight-edit-indicator text-gray-600"
+          >
+            © 2024 Your Company. All rights reserved.
+          </p>
+          <div class="flex space-x-6 mt-4 md:mt-0">
+            <a href="#" class="text-gray-600 hover:text-blue-600 text-sm">Privacy Policy</a>
+            <a href="#" class="text-gray-600 hover:text-blue-600 text-sm">Terms of Service</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Edit Mode Instructions -->
+  <div id="edit-instructions" class="fixed bottom-4 right-4 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 shadow-lg max-w-sm hidden">
+    <h3 class="font-semibold text-blue-900 mb-2">🎨 Visual Editing Active</h3>
+    <p class="text-blue-800 text-sm">
+      Click on any content with blue dashed outlines to edit directly on the page!
+    </p>
+    <button 
+      onclick="document.getElementById('edit-instructions').classList.add('hidden')"
+      class="text-blue-600 text-xs mt-2 hover:underline"
+    >
+      Got it
+    </button>
+  </div>
+
+  <!-- SightEdit Integration -->
+  <script type="module">
+    import SightEdit from '../../packages/core/dist/core.esm.js';
+    
+    // Initialize SightEdit
+    const sightEdit = SightEdit.init({
+      apiEndpoint: '/api/sightedit',
+      debug: true,
+      theme: {
+        primaryColor: '#3b82f6',
+        borderRadius: '8px'
+      },
+      features: {
+        autoSave: true,
+        batchOperations: true,
+        offlineSupport: true
+      },
+      auth: {
+        headers: async () => ({
+          'Authorization': 'Bearer demo-token',
+          'X-User-ID': 'landing-demo'
+        })
+      }
+    });
+
+    // Add edit mode visual feedback
+    sightEdit.on('modeChanged', (mode) => {
+      document.body.classList.toggle('sight-edit-mode', mode === 'edit');
+      
+      // Show/hide instructions
+      const instructions = document.getElementById('edit-instructions');
+      if (mode === 'edit') {
+        instructions.classList.remove('hidden');
+        setTimeout(() => instructions.classList.add('hidden'), 5000);
+      }
+    });
+
+    // Mock API for demo
+    window.mockAPI = {
+      '/api/sightedit/save': (data) => {
+        console.log('💾 Landing page content saved:', data);
+        return { success: true, data };
+      },
+      '/api/sightedit/batch': (operations) => {
+        console.log('📦 Landing page batch saved:', operations);
+        return { success: true, count: operations.length };
+      }
+    };
+
+    // Override fetch for demo
+    const originalFetch = window.fetch;
+    window.fetch = async (url, options) => {
+      if (url.startsWith('/api/sightedit')) {
+        const mockResponse = window.mockAPI[url];
+        if (mockResponse) {
+          const data = JSON.parse(options.body || '{}');
+          const result = mockResponse(data);
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+      return originalFetch(url, options);
+    };
+  </script>
+</body>
+</html>

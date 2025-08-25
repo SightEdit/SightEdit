@@ -504,7 +504,15 @@ export class ErrorHandler {
       [ErrorType.NETWORK]: 0,
       [ErrorType.PERMISSION]: 0,
       [ErrorType.RUNTIME]: 0,
-      [ErrorType.SECURITY]: 0
+      [ErrorType.SECURITY]: 0,
+      [ErrorType.AUTHENTICATION]: 0,
+      [ErrorType.AUTHORIZATION]: 0,
+      [ErrorType.RATE_LIMIT]: 0,
+      [ErrorType.TIMEOUT]: 0,
+      [ErrorType.UNAVAILABLE]: 0,
+      [ErrorType.CONFIGURATION]: 0,
+      [ErrorType.DATA_CORRUPTION]: 0,
+      [ErrorType.EXTERNAL_SERVICE]: 0
     };
 
     this.errors.forEach(error => {
@@ -599,10 +607,10 @@ export class ErrorHandler {
         });
         
         // Handle rate limiting with specific delay
-        if (lastError instanceof RateLimitError) {
-          await this.sleep(lastError.retryAfterSeconds * 1000);
+        if (lastError instanceof RateLimitError && 'retryAfterSeconds' in lastError) {
+          await new Promise(resolve => setTimeout(resolve, (lastError as RateLimitError).retryAfterSeconds * 1000));
         } else {
-          await this.sleep(delay);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
@@ -805,19 +813,22 @@ export class ErrorHandler {
   /**
    * Sanitizes error messages to prevent information disclosure
    */
-  private static sanitizeErrorMessage(message: string): string {
+  static sanitizeErrorMessage(message: string): string {
     if (!message || typeof message !== 'string') {
       return 'An error occurred';
     }
     
     let sanitized = message;
     
-    // Remove sensitive information patterns
-    this.sensitivePatterns.forEach(pattern => {
-      sanitized = sanitized.replace(pattern, '[REDACTED]');
-    });
+    // Replace specific patterns with appropriate placeholders
+    sanitized = sanitized.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, "[IP]");
+    sanitized = sanitized.replace(/\b(?:password|token|key|secret|api[_-]?key)\s*[=:]\s*\S+/gi, "[REDACTED]");
+    sanitized = sanitized.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, "[EMAIL]");
+    sanitized = sanitized.replace(/\b[A-Fa-f0-9]{32,}\b/g, "[TOKEN]");
+    sanitized = sanitized.replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=]+/gi, "[AUTH_HEADER]");
+    sanitized = sanitized.replace(/file:\/\/[^\s]+/g, "[FILE_PATH]");
+    sanitized = sanitized.replace(/(?:C|D|E|F):\\[^\s]+/g, "[FILE_PATH]");
     
-    // Limit message length to prevent DoS through large error messages
     return sanitized.substring(0, 500);
   }
   

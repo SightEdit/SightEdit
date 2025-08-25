@@ -163,6 +163,7 @@ describe('ElementDetector', () => {
   describe('detectMode', () => {
     it('should use explicit mode from data-sight-mode', () => {
       const element = document.createElement('div');
+      element.dataset.sight = 'test';
       element.dataset.sightMode = 'modal';
       
       const detected = ElementDetector.detectElement(element);

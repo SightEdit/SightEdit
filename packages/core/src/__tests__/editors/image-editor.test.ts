@@ -118,7 +118,7 @@ describe('ImageEditor', () => {
       
       editor.applyValue('https://example.com/new-bg.jpg');
       
-      expect(divElement.style.backgroundImage).toBe("url('https://example.com/new-bg.jpg')");
+      expect(divElement.style.backgroundImage).toBe("url(https://example.com/new-bg.jpg)");
     });
   });
 
@@ -263,7 +263,7 @@ describe('ImageEditor', () => {
       
       expect(content.style.borderRadius).toBe('12px');
       expect(input.style.borderRadius).toBe('12px');
-      expect(saveBtn.style.backgroundColor).toBe('#ff6b6b');
+      expect(saveBtn.style.backgroundColor).toBe('rgb(255, 107, 107)');
       expect(saveBtn.style.borderRadius).toBe('12px');
     });
 
@@ -277,7 +277,7 @@ describe('ImageEditor', () => {
       
       expect(modal?.style.zIndex).toBe('10009'); // 9999 + 10
       expect(content.style.borderRadius).toBe('4px');
-      expect(saveBtn.style.backgroundColor).toBe('#007bff');
+      expect(saveBtn.style.backgroundColor).toBe('rgb(0, 123, 255)');
     });
   });
 
@@ -438,11 +438,14 @@ describe('ImageEditor', () => {
     });
 
     it('should handle complex background image URLs', () => {
-      divElement.style.backgroundImage = 'url("https://example.com/path/with spaces/image.jpg")';
+      // Create a fresh div element for this test to avoid inherited styles
+      const testDiv = document.createElement('div');
+      testDiv.style.backgroundImage = 'url("https://example.com/path/with%20spaces/image.jpg")';
+      const testEditor = new ImageEditor(testDiv, config);
       
-      const value = editor.extractValue();
+      const value = testEditor.extractValue();
       
-      expect(value).toBe('https://example.com/path/with spaces/image.jpg');
+      expect(value).toBe('https://example.com/path/with%20spaces/image.jpg');
     });
 
     it('should handle background image with no quotes', () => {

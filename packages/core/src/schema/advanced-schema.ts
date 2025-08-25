@@ -558,6 +558,60 @@ export class SchemaEditorFactory {
   private editors: Map<string, any> = new Map();
   
   /**
+   * Validate editor type for security
+   */
+  static validateEditorType(editorType: string): void {
+    if (!editorType || typeof editorType !== 'string') {
+      throw new SecurityError('Editor type must be a non-empty string');
+    }
+    
+    const sanitizedType = editorType.toLowerCase().trim();
+    
+    if (!ALLOWED_EDITOR_TYPES.has(sanitizedType)) {
+      throw new SecurityError(`Unauthorized editor type: ${editorType}`);
+    }
+  }
+  
+  /**
+   * Sanitize schema data to prevent XSS and injection attacks
+   */
+  static sanitizeSchema(schema: any): any {
+    if (!schema || typeof schema !== 'object') {
+      return schema;
+    }
+    
+    const sanitized = JSON.parse(JSON.stringify(schema)); // Deep clone
+    
+    // Recursively sanitize string values
+    function sanitizeValue(value: any): any {
+      if (typeof value === 'string') {
+        return value
+          .replace(/<script[^>]*>.*?<\/script>/gi, '')
+          .replace(/javascript:/gi, '')
+          .replace(/on\w+=/gi, '')
+          .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
+          .replace(/onerror/gi, '')
+          .replace(/onload/gi, '')
+          .replace(/onclick/gi, '')
+          .replace(/onmouseover/gi, '');
+      } else if (Array.isArray(value)) {
+        return value.map(sanitizeValue);
+      } else if (typeof value === 'object' && value !== null) {
+        const sanitizedObj: any = {};
+        for (const key in value) {
+          if (value.hasOwnProperty(key)) {
+            sanitizedObj[key] = sanitizeValue(value[key]);
+          }
+        }
+        return sanitizedObj;
+      }
+      return value;
+    }
+    
+    return sanitizeValue(sanitized);
+  }
+  
+  /**
    * Create editor based on schema with security validation
    */
   createEditor(element: HTMLElement, schema: AdvancedSchema): any {
@@ -572,10 +626,8 @@ export class SchemaEditorFactory {
     
     const editorType = schema.editor.type.toLowerCase().trim();
     
-    // Whitelist validation - only allow approved editor types
-    if (!ALLOWED_EDITOR_TYPES.has(editorType)) {
-      throw new SecurityError(`Unauthorized editor type: ${editorType}`);
-    }
+    // Use static validation method
+    SchemaEditorFactory.validateEditorType(editorType);
     
     // Additional security checks for specific editor types
     this.validateEditorTypeSchema(editorType, schema);

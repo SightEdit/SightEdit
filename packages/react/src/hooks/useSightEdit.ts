@@ -67,13 +67,18 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
       
       if (!instance) {
         instance = SightEditCore.getInstance(initConfig || config);
-        await instance.initialize();
+        if (instance) {
+          await instance.initialize();
+        } else {
+          throw new Error('Failed to get or create SightEditCore instance');
+        }
         sightEditStore.setSightEdit(instance);
       }
 
       setIsInitialized(true);
       setIsEditMode(instance.isEditMode());
-      setActiveEditors(instance.getActiveEditors());
+      const editorsMap = instance.getActiveEditors();
+      setActiveEditors(Array.from(editorsMap.values()));
 
       // Set up event listeners
       const editModeListener = () => {
@@ -81,7 +86,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
       };
 
       const editorsUpdatedListener = () => {
-        setActiveEditors(instance!.getActiveEditors());
+        const editorsMap = instance!.getActiveEditors();
+        setActiveEditors(Array.from(editorsMap.values()));
       };
 
       const errorListener = (event: any) => {
@@ -140,7 +146,7 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
   const setEditMode = useCallback((enabled: boolean) => {
     const instance = sightEditStore.getSnapshot();
     if (instance) {
-      instance.setEditMode(enabled);
+      instance.setEditMode(enabled ? 'edit' : 'view');
     }
   }, []);
 

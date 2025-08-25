@@ -1,6 +1,24 @@
 import { SecurityManager, SecurityConfig, ThreatInfo } from '../../security/security-manager';
 import { EventBus } from '../../services/event-bus';
 
+// Mock DOM APIs that may not be available in JSDOM
+Object.defineProperty(window, 'document', {
+  value: {
+    ...window.document,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    createElement: jest.fn(() => ({
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      appendChild: jest.fn(),
+      setAttribute: jest.fn(),
+      getAttribute: jest.fn(),
+      style: {}
+    }))
+  },
+  writable: true
+});
+
 // Mock DOMPurify
 const mockDOMPurify = {
   sanitize: jest.fn((html: string, options?: any) => {
@@ -56,6 +74,20 @@ describe('SecurityManager', () => {
         enabled: true,
         maxRequests: 10,
         windowMs: 60000 // 1 minute
+      },
+      csp: {
+        enabled: true,
+        environment: 'test',
+        enforceMode: false,
+        useNonces: false,
+        useHashes: false,
+        allowInlineStyles: true,
+        allowInlineScripts: true,
+        trustedTypes: false,
+        directives: {
+          'default-src': ["'self'"],
+          'script-src': ["'self'", "'unsafe-inline'"]
+        }
       }
     };
 

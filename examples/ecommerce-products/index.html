@@ -3,385 +3,475 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Commerce Product Management Example</title>
+  <title>E-commerce Product Editor - SightEdit Example</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f3f4f6;
-      padding: 20px;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    header {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    h1 {
-      font-size: 24px;
-      color: #1f2937;
-    }
-    
-    .section-title {
-      font-size: 18px;
-      color: #4b5563;
-      margin: 20px 0 15px;
-    }
-    
-    /* Featured Products Section */
-    .featured-products {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      position: relative;
-    }
-    
-    .products-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 20px;
-    }
-    
     .product-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    
     .product-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    
-    .product-image {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      background: #f9fafb;
-    }
-    
-    .product-info {
-      padding: 16px;
-    }
-    
-    .product-name {
-      font-weight: 600;
-      color: #1f2937;
-      margin-bottom: 8px;
-    }
-    
-    .product-price {
-      font-size: 20px;
-      color: #3b82f6;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    
-    .product-description {
-      font-size: 14px;
-      color: #6b7280;
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-    
-    .product-stock {
-      display: inline-block;
-      padding: 4px 8px;
-      background: #d1fae5;
-      color: #065f46;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .product-stock.low {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-    
-    .product-stock.out {
-      background: #f3f4f6;
-      color: #6b7280;
-    }
-    
-    /* Hero Section */
-    .hero-section {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 60px 40px;
-      border-radius: 12px;
-      margin-bottom: 30px;
-      position: relative;
-    }
-    
-    .hero-content {
-      max-width: 600px;
-    }
-    
-    .hero-title {
-      font-size: 36px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-    
-    .hero-description {
-      font-size: 18px;
-      opacity: 0.9;
-      margin-bottom: 24px;
-    }
-    
-    .hero-button {
-      display: inline-block;
-      padding: 12px 24px;
-      background: white;
-      color: #667eea;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: 600;
-      transition: transform 0.2s;
-    }
-    
-    .hero-button:hover {
-      transform: scale(1.05);
-    }
-    
-    /* Categories Grid */
-    .categories-section {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    
-    .categories-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 15px;
-    }
-    
-    .category-card {
-      text-align: center;
-      padding: 20px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .category-card:hover {
-      background: #f9fafb;
-      border-color: #9ca3af;
-    }
-    
-    .category-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-    
-    .category-name {
-      font-size: 14px;
-      color: #4b5563;
-    }
-    
-    /* Info Box */
-    .info-box {
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    
-    .info-box h3 {
-      color: #92400e;
-      margin-bottom: 8px;
-    }
-    
-    .info-box p {
-      color: #78350f;
-      font-size: 14px;
-      line-height: 1.5;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <h1>E-Commerce Product Management Demo</h1>
-      <p style="color: #6b7280; margin-top: 8px;">
-        Demonstrating advanced SightEdit features with backend schema support
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <header class="text-center mb-12">
+      <h1 data-sightedit="text#store-name[required,maxLength:50]" class="text-4xl font-bold text-gray-800 mb-4">
+        TechStore Premium
+      </h1>
+      <p data-sightedit="text#store-tagline[maxLength:100]" class="text-xl text-gray-600">
+        Latest gadgets and technology at unbeatable prices
       </p>
     </header>
     
-    <div class="info-box">
-      <h3>🎯 How to Use This Demo</h3>
-      <p>
-        1. Press <strong>Ctrl/Cmd + E</strong> to enable edit mode<br>
-        2. Click on the Featured Products section to replace products from database<br>
-        3. Click on the Hero Section to use the visual HTML designer<br>
-        4. All changes are schema-driven from the backend, reducing HTML clutter
-      </p>
+    
+    
+    <!-- Product Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- Product 1 -->
+      <div class="product-card bg-white rounded-lg shadow-lg overflow-hidden" data-sight-record="product-1">
+        <div class="relative">
+          <img 
+            data-sightedit="image#product-image[required]"
+            src="https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400"
+            alt="Wireless Headphones"
+            class="w-full h-64 object-cover"
+          >
+          <div class="absolute top-4 right-4">
+            <span 
+              data-sightedit="select#badge-type[options:'New,Sale,Hot,Limited']"
+              class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold"
+            >
+              New
+            </span>
+          </div>
+        </div>
+        
+        <div class="p-6">
+          <h2 
+            data-sightedit="text#product-title[required,maxLength:80]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            Premium Wireless Headphones
+          </h2>
+          
+          <p 
+            data-sightedit="text#product-description[maxLength:200]"
+            class="text-gray-600 mb-4 h-12 overflow-hidden"
+          >
+            High-quality wireless headphones with noise cancellation and 30-hour battery life.
+          </p>
+          
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <span 
+                data-sightedit="number#product-price[required,min:1,max:9999]"
+                class="text-2xl font-bold text-green-600"
+              >
+                $299
+              </span>
+              <span 
+                data-sightedit="number#original-price[min:1,max:9999]"
+                class="text-lg text-gray-400 line-through"
+              >
+                $399
+              </span>
+            </div>
+            
+            <div class="flex items-center">
+              <div class="flex text-yellow-400 mr-2">
+                <span>★★★★★</span>
+              </div>
+              <span 
+                data-sightedit="text#rating-count[maxLength:20]"
+                class="text-sm text-gray-500"
+              >
+                (124 reviews)
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex space-x-2">
+              <div 
+                data-sightedit="color#color-option-1"
+                class="w-6 h-6 rounded-full bg-black border-2 border-gray-300 cursor-pointer"
+                style="background-color: #000000"
+              ></div>
+              <div 
+                data-sightedit="color#color-option-2"
+                class="w-6 h-6 rounded-full bg-white border-2 border-gray-300 cursor-pointer"
+                style="background-color: #ffffff"
+              ></div>
+              <div 
+                data-sightedit="color#color-option-3"
+                class="w-6 h-6 rounded-full bg-blue-500 border-2 border-gray-300 cursor-pointer"
+                style="background-color: #3b82f6"
+              ></div>
+            </div>
+            
+            <span 
+              data-sightedit="select#stock-status[options:'In Stock,Low Stock,Out of Stock']"
+              class="text-sm font-medium text-green-600"
+            >
+              In Stock
+            </span>
+          </div>
+
+          <button class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+
+      <!-- Product 2 -->
+      <div class="product-card bg-white rounded-lg shadow-lg overflow-hidden" data-sight-record="product-2">
+        <div class="relative">
+          <img 
+            data-sightedit="image#product-image[required]"
+            src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400"
+            alt="Smartphone"
+            class="w-full h-64 object-cover"
+          >
+          <div class="absolute top-4 right-4">
+            <span 
+              data-sightedit="select#badge-type[options:'New,Sale,Hot,Limited']"
+              class="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-semibold"
+            >
+              Sale
+            </span>
+          </div>
+        </div>
+        
+        <div class="p-6">
+          <h2 
+            data-sightedit="text#product-title[required,maxLength:80]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            Latest Smartphone Pro
+          </h2>
+          
+          <p 
+            data-sightedit="text#product-description[maxLength:200]"
+            class="text-gray-600 mb-4 h-12 overflow-hidden"
+          >
+            Cutting-edge smartphone with triple camera system and lightning-fast processor.
+          </p>
+          
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <span 
+                data-sightedit="number#product-price[required,min:1,max:9999]"
+                class="text-2xl font-bold text-green-600"
+              >
+                $799
+              </span>
+              <span 
+                data-sightedit="number#original-price[min:1,max:9999]"
+                class="text-lg text-gray-400 line-through"
+              >
+                $999
+              </span>
+            </div>
+            
+            <div class="flex items-center">
+              <div class="flex text-yellow-400 mr-2">
+                <span>★★★★☆</span>
+              </div>
+              <span 
+                data-sightedit="text#rating-count[maxLength:20]"
+                class="text-sm text-gray-500"
+              >
+                (89 reviews)
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex space-x-2">
+              <div 
+                data-sightedit="color#color-option-1"
+                class="w-6 h-6 rounded-full border-2 border-gray-300 cursor-pointer"
+                style="background-color: #1f2937"
+              ></div>
+              <div 
+                data-sightedit="color#color-option-2"
+                class="w-6 h-6 rounded-full border-2 border-gray-300 cursor-pointer"
+                style="background-color: #e5e7eb"
+              ></div>
+              <div 
+                data-sightedit="color#color-option-3"
+                class="w-6 h-6 rounded-full border-2 border-gray-300 cursor-pointer"
+                style="background-color: #dc2626"
+              ></div>
+            </div>
+            
+            <span 
+              data-sightedit="select#stock-status[options:'In Stock,Low Stock,Out of Stock']"
+              class="text-sm font-medium text-orange-600"
+            >
+              Low Stock
+            </span>
+          </div>
+
+          <button class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+
+      <!-- Product 3 -->
+      <div class="product-card bg-white rounded-lg shadow-lg overflow-hidden" data-sight-record="product-3">
+        <div class="relative">
+          <img 
+            data-sightedit="image#product-image[required]"
+            src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400"
+            alt="Laptop"
+            class="w-full h-64 object-cover"
+          >
+          <div class="absolute top-4 right-4">
+            <span 
+              data-sightedit="select#badge-type[options:'New,Sale,Hot,Limited']"
+              class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-semibold"
+            >
+              Hot
+            </span>
+          </div>
+        </div>
+        
+        <div class="p-6">
+          <h2 
+            data-sightedit="text#product-title[required,maxLength:80]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            Gaming Laptop Ultra
+          </h2>
+          
+          <p 
+            data-sightedit="text#product-description[maxLength:200]"
+            class="text-gray-600 mb-4 h-12 overflow-hidden"
+          >
+            High-performance gaming laptop with RTX graphics and blazing-fast SSD storage.
+          </p>
+          
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <span 
+                data-sightedit="number#product-price[required,min:1,max:9999]"
+                class="text-2xl font-bold text-green-600"
+              >
+                $1299
+              </span>
+              <span 
+                data-sightedit="number#original-price[min:1,max:9999]"
+                class="text-lg text-gray-400 line-through"
+              >
+                $1599
+              </span>
+            </div>
+            
+            <div class="flex items-center">
+              <div class="flex text-yellow-400 mr-2">
+                <span>★★★★★</span>
+              </div>
+              <span 
+                data-sightedit="text#rating-count[maxLength:20]"
+                class="text-sm text-gray-500"
+              >
+                (67 reviews)
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex space-x-2">
+              <div 
+                data-sightedit="color#color-option-1"
+                class="w-6 h-6 rounded-full border-2 border-gray-300 cursor-pointer"
+                style="background-color: #111827"
+              ></div>
+              <div 
+                data-sightedit="color#color-option-2"
+                class="w-6 h-6 rounded-full border-2 border-gray-300 cursor-pointer"
+                style="background-color: #6b7280"
+              ></div>
+            </div>
+            
+            <span 
+              data-sightedit="select#stock-status[options:'In Stock,Low Stock,Out of Stock']"
+              class="text-sm font-medium text-green-600"
+            >
+              In Stock
+            </span>
+          </div>
+
+          <button class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Add to Cart
+          </button>
+        </div>
+      </div>
     </div>
     
-    <!-- Hero Section - Editable with HTML Designer -->
-    <section 
-      class="hero-section" 
-      data-sight="hero.main"
-      data-sight-type="html-designer">
-      <div class="hero-content">
-        <h2 class="hero-title">Summer Collection 2024</h2>
-        <p class="hero-description">
-          Discover our latest arrivals with up to 40% off on selected items. 
-          Limited time offer - don't miss out!
-        </p>
-        <a href="#" class="hero-button">Shop Now</a>
-      </div>
-    </section>
-    
-    <!-- Featured Products - Replaceable from Database -->
-    <section 
-      class="featured-products"
-      data-sight="products.featured"
-      data-sight-type="product-selector"
-      data-products='[
-        {"id": 1, "name": "Premium Headphones", "price": 299.99, "image": "https://via.placeholder.com/300x200/4F46E5/ffffff?text=Headphones", "description": "Wireless noise-cancelling headphones", "stock": 15},
-        {"id": 2, "name": "Smart Watch", "price": 399.99, "image": "https://via.placeholder.com/300x200/7C3AED/ffffff?text=Smart+Watch", "description": "Fitness tracking and notifications", "stock": 8},
-        {"id": 3, "name": "Laptop Stand", "price": 49.99, "image": "https://via.placeholder.com/300x200/EC4899/ffffff?text=Laptop+Stand", "description": "Ergonomic aluminum laptop stand", "stock": 25}
-      ]'>
-      <h2 class="section-title">Featured Products</h2>
-      <div class="products-grid">
-        <!-- Initial products -->
-        <div class="product-card">
-          <img src="https://via.placeholder.com/300x200/4F46E5/ffffff?text=Headphones" alt="Premium Headphones" class="product-image">
-          <div class="product-info">
-            <h3 class="product-name">Premium Headphones</h3>
-            <div class="product-price">$299.99</div>
-            <p class="product-description">Wireless noise-cancelling headphones with superior sound quality</p>
-            <span class="product-stock">15 in stock</span>
+    <!-- Features Section -->
+    <section class="mt-16 bg-white rounded-lg shadow-lg p-8">
+      <h2 
+        data-sightedit="text#features-title[required,maxLength:50]"
+        class="text-3xl font-bold text-center text-gray-800 mb-8"
+      >
+        Why Choose TechStore?
+      </h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🚚</span>
           </div>
+          <h3 
+            data-sightedit="text#feature-1-title[required,maxLength:30]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            Free Shipping
+          </h3>
+          <p 
+            data-sightedit="text#feature-1-desc[maxLength:150]"
+            class="text-gray-600"
+          >
+            Free shipping on all orders over $50. Fast delivery within 2-3 business days.
+          </p>
         </div>
-        
-        <div class="product-card">
-          <img src="https://via.placeholder.com/300x200/7C3AED/ffffff?text=Smart+Watch" alt="Smart Watch" class="product-image">
-          <div class="product-info">
-            <h3 class="product-name">Smart Watch</h3>
-            <div class="product-price">$399.99</div>
-            <p class="product-description">Fitness tracking and notifications on your wrist</p>
-            <span class="product-stock low">8 in stock</span>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🔒</span>
           </div>
+          <h3 
+            data-sightedit="text#feature-2-title[required,maxLength:30]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            Secure Payment
+          </h3>
+          <p 
+            data-sightedit="text#feature-2-desc[maxLength:150]"
+            class="text-gray-600"
+          >
+            Your payment information is always secure with our encrypted checkout process.
+          </p>
         </div>
-        
-        <div class="product-card">
-          <img src="https://via.placeholder.com/300x200/EC4899/ffffff?text=Laptop+Stand" alt="Laptop Stand" class="product-image">
-          <div class="product-info">
-            <h3 class="product-name">Laptop Stand</h3>
-            <div class="product-price">$49.99</div>
-            <p class="product-description">Ergonomic aluminum laptop stand for better posture</p>
-            <span class="product-stock">25 in stock</span>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🛡️</span>
           </div>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Categories Section -->
-    <section class="categories-section" data-sight="categories.grid">
-      <h2 class="section-title">Shop by Category</h2>
-      <div class="categories-grid">
-        <div class="category-card">
-          <div class="category-icon">💻</div>
-          <div class="category-name">Electronics</div>
-        </div>
-        <div class="category-card">
-          <div class="category-icon">👕</div>
-          <div class="category-name">Clothing</div>
-        </div>
-        <div class="category-card">
-          <div class="category-icon">🏠</div>
-          <div class="category-name">Home & Garden</div>
-        </div>
-        <div class="category-card">
-          <div class="category-icon">⚽</div>
-          <div class="category-name">Sports</div>
-        </div>
-        <div class="category-card">
-          <div class="category-icon">📚</div>
-          <div class="category-name">Books</div>
-        </div>
-        <div class="category-card">
-          <div class="category-icon">🎮</div>
-          <div class="category-name">Gaming</div>
+          <h3 
+            data-sightedit="text#feature-3-title[required,maxLength:30]"
+            class="text-xl font-semibold text-gray-800 mb-2"
+          >
+            1 Year Warranty
+          </h3>
+          <p 
+            data-sightedit="text#feature-3-desc[maxLength:150]"
+            class="text-gray-600"
+          >
+            All products come with a comprehensive 1-year warranty and 30-day return policy.
+          </p>
         </div>
       </div>
     </section>
+
+    <!-- Newsletter Section -->
+    <section class="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 text-center text-white">
+      <h2 
+        data-sightedit="text#newsletter-title[required,maxLength:50]"
+        class="text-3xl font-bold mb-4"
+      >
+        Stay Updated
+      </h2>
+      <p 
+        data-sightedit="text#newsletter-desc[maxLength:150]"
+        class="text-xl mb-8 opacity-90"
+      >
+        Get the latest deals and product announcements delivered to your inbox.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+        <input 
+          type="email" 
+          placeholder="Enter your email"
+          class="flex-1 px-6 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-4 focus:ring-blue-300"
+        >
+        <button class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+          Subscribe
+        </button>
+      </div>
+    </section>
+
+    <!-- Edit Mode Toggle Instructions -->
+    <div class="mt-12 p-6 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+      <h3 class="text-lg font-semibold text-yellow-800 mb-2">🎨 Visual Editing Mode</h3>
+      <p class="text-yellow-700">
+        Press <kbd class="bg-yellow-200 px-2 py-1 rounded">Ctrl/Cmd + E</kbd> to toggle edit mode and start editing content directly on the page!
+      </p>
+      <p class="text-yellow-700 mt-2 text-sm">
+        This example demonstrates SightEdit with e-commerce products using various editor types: text, numbers, colors, images, and select dropdowns.
+      </p>
+    </div>
   </div>
   
-  <!-- Include SightEdit -->
-  <script src="../../packages/core/dist/sightedit.js"></script>
-  <script>
-    // Initialize SightEdit with schema support
-    const sightEdit = new SightEdit({
-      apiUrl: 'http://localhost:3001/api',
+  <!-- SightEdit Integration -->
+  <script type="module">
+    import SightEdit from '../../packages/core/dist/core.esm.js';
+    
+    // Initialize SightEdit
+    SightEdit.init({
+      apiEndpoint: '/api/sightedit',
       debug: true,
       theme: {
-        primaryColor: '#8b5cf6'
+        primaryColor: '#2563eb',
+        borderRadius: '8px'
       },
-      // Schema registry configuration
-      schemaRegistry: {
-        endpoint: 'http://localhost:3001/api/schema',
-        cache: true,
-        ttl: 300000 // 5 minutes
+      features: {
+        autoSave: true,
+        batchOperations: true,
+        offlineSupport: true
       },
-      // Custom editor mappings
-      editors: {
-        'product-selector': 'ProductSelectorEditor',
-        'html-designer': 'HTMLDesignerEditor'
+      auth: {
+        headers: async () => ({
+          'Authorization': 'Bearer demo-token',
+          'X-User-ID': 'demo-user'
+        })
       }
     });
-    
-    // Listen for product changes
-    document.querySelector('[data-sight="products.featured"]')?.addEventListener('productsChanged', (e) => {
-      console.log('Products changed:', e.detail.products);
-      // Update the display
-      updateProductsDisplay(e.detail.products);
-    });
-    
-    function updateProductsDisplay(products) {
-      const grid = document.querySelector('[data-sight="products.featured"] .products-grid');
-      if (!grid) return;
-      
-      grid.innerHTML = '';
-      
-      products.forEach(product => {
-        const card = document.createElement('div');
-        card.className = 'product-card';
-        
-        const stockClass = product.stock < 10 ? 'low' : product.stock === 0 ? 'out' : '';
-        const stockText = product.stock > 0 ? `${product.stock} in stock` : 'Out of stock';
-        
-        card.innerHTML = `
-          <img src="${product.image}" alt="${product.name}" class="product-image">
-          <div class="product-info">
-            <h3 class="product-name">${product.name}</h3>
-            <div class="product-price">$${product.price.toFixed(2)}</div>
-            <p class="product-description">${product.description}</p>
-            <span class="product-stock ${stockClass}">${stockText}</span>
-          </div>
-        `;
-        
-        grid.appendChild(card);
-      });
-    }
+
+    // Mock API for demo
+    window.mockAPI = {
+      '/api/sightedit/save': (data) => {
+        console.log('💾 Saved:', data);
+        return { success: true, data };
+      },
+      '/api/sightedit/batch': (operations) => {
+        console.log('📦 Batch saved:', operations);
+        return { success: true, count: operations.length };
+      }
+    };
+
+    // Override fetch for demo
+    const originalFetch = window.fetch;
+    window.fetch = async (url, options) => {
+      if (url.startsWith('/api/sightedit')) {
+        const mockResponse = window.mockAPI[url];
+        if (mockResponse) {
+          const data = JSON.parse(options.body || '{}');
+          const result = mockResponse(data);
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+      return originalFetch(url, options);
+    };
   </script>
 </body>
 </html>

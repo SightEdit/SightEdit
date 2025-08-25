@@ -122,14 +122,14 @@ describe('ErrorHandler', () => {
 
 describe('UserErrorMessages', () => {
   test('should provide user-friendly messages', () => {
-    expect(UserErrorMessages.getMessageFor('Network Error')).toContain('Connection problem');
-    expect(UserErrorMessages.getMessageFor('Invalid JSON')).toContain('data format');
-    expect(UserErrorMessages.getMessageFor('Permission denied')).toContain('permission');
+    expect(UserErrorMessages.getMessageFor('Network Error').message).toContain('Connection problem');
+    expect(UserErrorMessages.getMessageFor('Invalid JSON').message).toContain('data format');
+    expect(UserErrorMessages.getMessageFor('Permission denied').message).toContain('permission');
   });
 
   test('should handle unknown errors with fallback', () => {
     const message = UserErrorMessages.getMessageFor('Unknown weird error');
-    expect(message).toContain('Something went wrong');
+    expect(message.message).toContain('Something went wrong');
   });
 
   test('should allow adding custom messages', () => {
