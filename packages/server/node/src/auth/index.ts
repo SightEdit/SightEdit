@@ -200,6 +200,20 @@ export class AuthHandler {
       });
     }
 
+    // SECURITY: Invalidate all existing refresh tokens to prevent session fixation
+    // Remove all refresh tokens for this user
+    const tokensToDelete: string[] = [];
+    refreshTokens.forEach((tokenData, token) => {
+      if (tokenData.userId === user.id) {
+        tokensToDelete.push(token);
+      }
+    });
+
+    tokensToDelete.forEach(token => refreshTokens.delete(token));
+
+    // Log security event
+    console.log(`Security: Invalidated ${tokensToDelete.length} existing refresh tokens for user ${user.id} upon login`);
+
     // Generate tokens
     if (this.jwtAuth) {
       const authUser: AuthUser = {

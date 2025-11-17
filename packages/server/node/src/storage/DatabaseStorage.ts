@@ -28,8 +28,33 @@ export abstract class BaseDatabaseStorage implements StorageAdapter {
 
   constructor(config: DatabaseConfig) {
     this.config = config;
-    this.tableName = config.tableName || 'sightedit_content';
+    const rawTableName = config.tableName || 'sightedit_content';
+
+    // Validate and sanitize table name to prevent SQL injection
+    this.tableName = this.validateTableName(rawTableName);
     this.initialize();
+  }
+
+  /**
+   * Validate table name to prevent SQL injection
+   * Only allows alphanumeric characters and underscores
+   */
+  protected validateTableName(name: string): string {
+    // SQL identifier rules: must start with letter or underscore, contain only alphanumeric and underscores
+    const validPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+    if (!validPattern.test(name)) {
+      throw new Error(
+        `Invalid table name: "${name}". Table names must start with a letter or underscore and contain only alphanumeric characters and underscores.`
+      );
+    }
+
+    // Additional length check (PostgreSQL limit is 63 characters)
+    if (name.length > 63) {
+      throw new Error(`Table name too long: "${name}". Maximum length is 63 characters.`);
+    }
+
+    return name;
   }
 
   protected abstract initialize(): Promise<void>;

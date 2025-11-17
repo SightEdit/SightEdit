@@ -76,24 +76,42 @@ class SecureUserStorage {
   }
   
   private encrypt(text: string): string {
+    // Generate a random IV for each encryption (best practice)
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
+
+    // Use createCipheriv (not deprecated createCipher) with explicit IV
+    // aes-256-gcm provides authenticated encryption (AEAD)
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
+
+    // Get authentication tag for integrity verification
     const authTag = cipher.getAuthTag();
+
+    // Return IV:authTag:ciphertext (all components needed for decryption)
     return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
   }
-  
+
   private decrypt(encryptedText: string): string {
     const parts = encryptedText.split(':');
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted data format');
+    }
+
     const iv = Buffer.from(parts[0], 'hex');
     const authTag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];
-    
-    const decipher = crypto.createDecipher('aes-256-gcm', this.encryptionKey);
+
+    // Use createDecipheriv (not deprecated createDecipher) with explicit IV
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+
+    // Set authentication tag for integrity verification
     decipher.setAuthTag(authTag);
+
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
+
     return decrypted;
   }
   
