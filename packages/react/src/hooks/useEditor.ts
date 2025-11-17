@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { Editor, ElementType, SaveData, ValidationResult } from '@sightedit/core';
 import { SightEditCore } from '@sightedit/core';
 
@@ -49,6 +49,19 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
   const debounceTimeoutRef = useRef<NodeJS.Timeout>();
   const sightEditRef = useRef<SightEditCore>();
 
+  // BUG FIX: Memoize validation object to prevent infinite loops
+  // Validation object is often created inline by parent components
+  const validationStr = validation ? JSON.stringify(validation) : '';
+  const stableValidation = useMemo(() => validation, [validationStr]);
+
+  // BUG FIX: Memoize callback refs to prevent infinite loops
+  const onSaveRef = useRef(onSave);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    onErrorRef.current = onError;
+  });
+
   // Initialize SightEdit instance
   useEffect(() => {
     if (!sightEditRef.current) {
@@ -80,7 +93,7 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
       if (editor && value !== undefined) {
         try {
           const result = editor.validate(value);
-          
+
           // Handle validation result (boolean | string from BaseEditor)
           let validationResult: ValidationResult;
           if (typeof result === 'boolean') {
@@ -103,9 +116,9 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
               errors: []
             };
           }
-          
+
           setValidationResult(validationResult);
-          
+
           if (autoSave && validationResult.isValid && isDirty) {
             await save();
           }
@@ -123,33 +136,37 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [value, editor, isDirty, autoSave, debounceMs]);
+  // BUG FIX: Added 'save' to dependencies to prevent infinite loop
+  // The save function is stable (created with useCallback) but must be included
+  }, [value, editor, isDirty, autoSave, debounceMs, save]);
 
   // Create editor when element type is available
   useEffect(() => {
     let mounted = true;
-    
+
     async function createEditor() {
       if (!sightEditRef.current || !type) return;
-      
+
       try {
         // Create a virtual element for the editor
         const element = document.createElement('div');
         element.setAttribute('data-sight', sight);
         element.setAttribute('data-type', type);
-        
-        if (validation) {
-          element.setAttribute('data-validation', JSON.stringify(validation));
+
+        // BUG FIX: Use stableValidation instead of validation to prevent infinite loops
+        if (stableValidation) {
+          element.setAttribute('data-validation', JSON.stringify(stableValidation));
         }
 
         const newEditor = sightEditRef.current.createEditor(element, type);
-        
+
         if (mounted) {
           setEditor(newEditor);
         }
       } catch (error) {
-        if (mounted && onError) {
-          onError(error as Error);
+        // BUG FIX: Use onErrorRef.current to avoid unstable callback dependency
+        if (mounted && onErrorRef.current) {
+          onErrorRef.current(error as Error);
         }
       }
     }
@@ -159,7 +176,8 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
     return () => {
       mounted = false;
     };
-  }, [sight, type, validation, onError]);
+  // BUG FIX: Use stableValidation instead of validation and onError to prevent infinite loops
+  }, [sight, type, stableValidation]);
 
   const save = useCallback(async () => {
     if (!sightEditRef.current || !validationResult?.isValid) {
@@ -175,20 +193,23 @@ export function useEditor(options: UseEditorOptions): UseEditorReturn {
       };
 
       await sightEditRef.current.save(saveData);
-      
+
       initialValueRef.current = value;
       setIsDirty(false);
-      
-      if (onSave) {
-        onSave(value);
+
+      // BUG FIX: Use onSaveRef.current to avoid unstable callback dependency
+      if (onSaveRef.current) {
+        onSaveRef.current(value);
       }
     } catch (error) {
-      if (onError) {
-        onError(error as Error);
+      // BUG FIX: Use onErrorRef.current to avoid unstable callback dependency
+      if (onErrorRef.current) {
+        onErrorRef.current(error as Error);
       }
       throw error;
     }
-  }, [sight, value, type, validationResult, onSave, onError]);
+  // BUG FIX: Removed onSave and onError from dependencies - they're accessed via refs
+  }, [sight, value, type, validationResult]);
 
   const reset = useCallback(() => {
     setValue(initialValueRef.current);

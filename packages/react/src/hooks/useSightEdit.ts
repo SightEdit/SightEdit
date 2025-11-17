@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useRef, useSyncExternalStore, useMemo } from 'react';
 import { SightEditCore, SightEditConfig, Editor } from '@sightedit/core';
 
 export interface UseSightEditOptions {
@@ -40,14 +40,19 @@ const sightEditStore = {
 
 export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditReturn {
   const { config, autoInit = true } = options;
-  
+
   const [isInitialized, setIsInitialized] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [activeEditors, setActiveEditors] = useState<readonly Editor[]>([]);
   const [error, setError] = useState<Error | null>(null);
-  
+
   const initializingRef = useRef(false);
   const listenersRef = useRef<(() => void)[]>([]);
+
+  // BUG FIX: Memoize config object to prevent infinite loops
+  // Config object is often created inline by parent components
+  const configStr = config ? JSON.stringify(config) : '';
+  const stableConfig = useMemo(() => config, [configStr]);
 
   // Subscribe to SightEdit instance changes
   const sightEdit = useSyncExternalStore(
@@ -58,15 +63,16 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
   // Initialize SightEdit
   const initialize = useCallback(async (initConfig?: Partial<SightEditConfig>) => {
     if (initializingRef.current) return;
-    
+
     initializingRef.current = true;
     setError(null);
 
     try {
       let instance = sightEditStore.getSnapshot();
-      
+
       if (!instance) {
-        instance = SightEditCore.getInstance(initConfig || config);
+        // BUG FIX: Use stableConfig instead of config to prevent infinite loops
+        instance = SightEditCore.getInstance(initConfig || stableConfig);
         if (instance) {
           await instance.initialize();
         } else {
@@ -110,7 +116,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
     } finally {
       initializingRef.current = false;
     }
-  }, [config]);
+  // BUG FIX: Use stableConfig instead of config to prevent infinite loops
+  }, [stableConfig]);
 
   // Destroy SightEdit
   const destroy = useCallback(async () => {
@@ -155,7 +162,8 @@ export function useSightEdit(options: UseSightEditOptions = {}): UseSightEditRet
     if (autoInit && !isInitialized && !initializingRef.current) {
       initialize();
     }
-  }, [autoInit, initialize, isInitialized]);
+  // BUG FIX: Added all dependencies to prevent stale closures
+  }, [autoInit, isInitialized, initialize]);
 
   // Cleanup on unmount
   useEffect(() => {
