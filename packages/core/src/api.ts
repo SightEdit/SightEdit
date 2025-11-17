@@ -314,7 +314,7 @@ export class SightEditAPI {
 
     // Retry logic for failed requests
     const maxRetries = 3;
-    let lastError: Error;
+    let lastError: Error = new Error('Request failed after all retry attempts');
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -346,8 +346,8 @@ export class SightEditAPI {
         }
         
         return responseData;
-      } catch (error) {
-        lastError = error as Error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
         
         // For network errors (including timeout), retry if attempts remain
         const isNetworkError = (error as Error).name === 'TypeError' || 
@@ -370,7 +370,7 @@ export class SightEditAPI {
       }
     }
     
-    throw lastError!;
+    throw lastError;
   }
 
   private async buildHeaders(customHeaders?: HeadersInit): Promise<Headers> {
@@ -419,12 +419,12 @@ export class SightEditAPI {
       });
       clearTimeout(timeoutId);
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout');
       }
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

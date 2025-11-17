@@ -87,15 +87,30 @@ export class MongoDBStorageAdapter implements StorageAdapter {
 
   async list(prefix?: string): Promise<string[]> {
     if (!this.collection) await this.connect();
-    
+
     try {
-      const query = prefix ? { key: { $regex: `^${prefix}` } } : {};
+      let query = {};
+
+      if (prefix) {
+        // Escape regex special characters to prevent NoSQL injection and ReDoS
+        const escapedPrefix = this.escapeRegex(prefix);
+        query = { key: { $regex: `^${escapedPrefix}` } };
+      }
+
       const docs = await this.collection.find(query, { projection: { key: 1 } }).toArray();
       return docs.map((doc: any) => doc.key);
     } catch (error) {
       console.error('MongoDB list error:', error);
       return [];
     }
+  }
+
+  /**
+   * Escape regex special characters to prevent NoSQL injection
+   */
+  private escapeRegex(str: string): string {
+    // Escape all regex metacharacters
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**

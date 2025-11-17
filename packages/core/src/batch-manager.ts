@@ -31,9 +31,13 @@ export class BatchManager extends EventEmitter {
   private isProcessing: boolean = false;
   private localStorage: Storage | null = null;
 
+  // Store bound event listeners to properly remove them later
+  private boundBeforeUnload: (event: BeforeUnloadEvent) => void;
+  private boundVisibilityChange: () => void;
+
   constructor(config: Partial<BatchConfig> = {}) {
     super();
-    
+
     this.config = {
       enabled: true,
       maxBatchSize: 50,
@@ -44,6 +48,10 @@ export class BatchManager extends EventEmitter {
       maxRetries: 3,
       ...config
     };
+
+    // Bind event handlers once to maintain same reference
+    this.boundBeforeUnload = this.handleBeforeUnload.bind(this);
+    this.boundVisibilityChange = this.handleVisibilityChange.bind(this);
 
     // Check if localStorage is available
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -58,8 +66,8 @@ export class BatchManager extends EventEmitter {
 
     // Listen for page unload to save pending changes
     if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
-      window.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+      window.addEventListener('beforeunload', this.boundBeforeUnload);
+      window.addEventListener('visibilitychange', this.boundVisibilityChange);
     }
   }
 
@@ -407,15 +415,15 @@ export class BatchManager extends EventEmitter {
    */
   destroy(): void {
     this.stopAutoFlush();
-    
+
     if (typeof window !== 'undefined') {
-      window.removeEventListener('beforeunload', this.handleBeforeUnload.bind(this));
-      window.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+      window.removeEventListener('beforeunload', this.boundBeforeUnload);
+      window.removeEventListener('visibilitychange', this.boundVisibilityChange);
     }
 
     // Final save
     this.saveQueueToStorage();
-    
+
     this.removeAllListeners();
   }
 

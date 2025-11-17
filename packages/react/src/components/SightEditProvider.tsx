@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback, useRef } from 'react';
 import { SightEditCore, SightEditConfig, Editor } from '@sightedit/core';
 import { SightEditErrorBoundary } from './ErrorBoundary';
 
@@ -38,8 +38,17 @@ export function SightEditProvider({
   const [error, setError] = useState<Error | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
 
+  // BUG FIX: Store event listener cleanup functions
+  const listenersRef = useRef<(() => void)[]>([]);
+
+  // BUG FIX: Memoize callback ref to prevent unnecessary re-renders
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  });
+
   // Initialize SightEdit
-  const initialize = async (initConfig?: Partial<SightEditConfig>) => {
+  const initialize = useCallback(async (initConfig?: Partial<SightEditConfig>) => {
     if (isInitializing) return;
     
     setIsInitializing(true);
@@ -54,36 +63,58 @@ export function SightEditProvider({
       setIsEditMode(instance.isEditMode());
       setActiveEditors(instance.getActiveEditors());
 
-      // Set up event listeners
-      instance.on('edit-mode:toggled', () => {
+      // BUG FIX: Clean up old listeners before adding new ones
+      listenersRef.current.forEach(cleanup => cleanup());
+      listenersRef.current = [];
+
+      // Set up event listeners with named functions for cleanup
+      const editModeListener = () => {
         setIsEditMode(instance.isEditMode());
-      });
+      };
 
-      instance.on('editors:updated', () => {
+      const editorsUpdatedListener = () => {
         setActiveEditors(instance.getActiveEditors());
-      });
+      };
 
-      instance.on('error:occurred', (event: any) => {
+      const errorListener = (event: any) => {
         const err = event.error;
         setError(err);
-        if (onError) {
-          onError(err);
+        // BUG FIX: Use onErrorRef.current to avoid stale closure
+        if (onErrorRef.current) {
+          onErrorRef.current(err);
         }
-      });
+      };
+
+      instance.on('edit-mode:toggled', editModeListener);
+      instance.on('editors:updated', editorsUpdatedListener);
+      instance.on('error:occurred', errorListener);
+
+      // BUG FIX: Store cleanup functions for proper memory management
+      listenersRef.current = [
+        () => instance.off('edit-mode:toggled', editModeListener),
+        () => instance.off('editors:updated', editorsUpdatedListener),
+        () => instance.off('error:occurred', errorListener)
+      ];
 
     } catch (err) {
       const error = err as Error;
       setError(error);
-      if (onError) {
-        onError(error);
+      // BUG FIX: Use onErrorRef.current to avoid stale closure
+      if (onErrorRef.current) {
+        onErrorRef.current(error);
       }
     } finally {
       setIsInitializing(false);
     }
-  };
+  // BUG FIX: Added config to dependencies (memoized above)
+  }, [config]);
 
   // Destroy SightEdit
-  const destroy = async () => {
+  const destroy = useCallback(async () => {
+    // BUG FIX: Clean up event listeners before destroying
+    listenersRef.current.forEach(cleanup => cleanup());
+    listenersRef.current = [];
+
     if (sightEdit) {
       try {
         await sightEdit.destroy();
@@ -95,37 +126,43 @@ export function SightEditProvider({
       } catch (err) {
         const error = err as Error;
         setError(error);
-        if (onError) {
-          onError(error);
+        // BUG FIX: Use onErrorRef.current to avoid stale closure
+        if (onErrorRef.current) {
+          onErrorRef.current(error);
         }
       }
     }
-  };
+  }, [sightEdit]);
 
   // Toggle edit mode
-  const toggleEditMode = () => {
+  const toggleEditMode = useCallback(() => {
     if (sightEdit) {
       sightEdit.toggleEditMode();
     }
-  };
+  }, [sightEdit]);
 
   // Set edit mode
-  const setEditMode = (enabled: boolean) => {
+  const setEditMode = useCallback((enabled: boolean) => {
     if (sightEdit) {
       sightEdit.setEditMode(enabled);
     }
-  };
+  }, [sightEdit]);
 
   // Auto-initialize if requested
   useEffect(() => {
     if (autoInit && !isInitialized && !isInitializing) {
       initialize();
     }
-  }, [autoInit]);
+  // BUG FIX: Added all dependencies (initialize, isInitialized, isInitializing)
+  }, [autoInit, isInitialized, isInitializing, initialize]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // BUG FIX: Clean up event listeners on unmount
+      listenersRef.current.forEach(cleanup => cleanup());
+      listenersRef.current = [];
+
       if (sightEdit) {
         sightEdit.destroy().catch(console.error);
       }

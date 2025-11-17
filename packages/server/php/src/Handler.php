@@ -266,45 +266,78 @@ class MemoryStorage implements StorageAdapter {
 
 class FileStorage implements StorageAdapter {
     private $basePath;
-    
+
     public function __construct(string $basePath) {
-        $this->basePath = $basePath;
-        if (!is_dir($basePath)) {
-            mkdir($basePath, 0777, true);
+        $this->basePath = realpath($basePath) ?: $basePath;
+
+        if (!is_dir($this->basePath)) {
+            // Use secure permissions (0750 = owner rwx, group r-x, others none)
+            mkdir($this->basePath, 0750, true);
         }
     }
-    
+
     public function get(string $key) {
         $file = $this->getFilePath($key);
+        $this->validateFilePath($file);
+
         if (file_exists($file)) {
             return json_decode(file_get_contents($file), true);
         }
         return null;
     }
-    
+
     public function set(string $key, $value): void {
         $file = $this->getFilePath($key);
+        $this->validateFilePath($file);
+
         $dir = dirname($file);
         if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
+            // Use secure permissions (0750)
+            mkdir($dir, 0750, true);
         }
+
         file_put_contents($file, json_encode($value));
+        // Set secure file permissions (0640 = owner rw, group r, others none)
+        chmod($file, 0640);
     }
-    
+
     public function delete(string $key): void {
         $file = $this->getFilePath($key);
+        $this->validateFilePath($file);
+
         if (file_exists($file)) {
             unlink($file);
         }
     }
-    
+
     public function list(string $prefix = null): array {
-        // TODO: Implement file listing
+        // TODO: Implement file listing with proper security checks
         return [];
     }
-    
+
     private function getFilePath(string $key): string {
+        // Sanitize key to prevent path traversal
         $safe_key = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $key);
-        return $this->basePath . '/' . $safe_key . '.json';
+        return $this->basePath . DIRECTORY_SEPARATOR . $safe_key . '.json';
+    }
+
+    /**
+     * Validate file path to prevent path traversal attacks
+     */
+    private function validateFilePath(string $filePath): void {
+        // Get the real path (resolves symlinks and relative paths)
+        $realPath = file_exists($filePath) ? realpath($filePath) : realpath(dirname($filePath)) . DIRECTORY_SEPARATOR . basename($filePath);
+        $realBasePath = realpath($this->basePath);
+
+        // Check if the file is within the base directory
+        if ($realBasePath === false || strpos($realPath, $realBasePath . DIRECTORY_SEPARATOR) !== 0) {
+            throw new \Exception('Path traversal attempt detected: access denied');
+        }
+
+        // Prevent access to hidden files
+        $fileName = basename($filePath);
+        if (strpos($fileName, '.') === 0 && $fileName !== '.json') {
+            throw new \Exception('Access to hidden files not allowed');
+        }
     }
 }

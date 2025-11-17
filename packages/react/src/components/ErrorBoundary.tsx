@@ -112,11 +112,14 @@ export class SightEditErrorBoundary extends Component<ErrorBoundaryProps, ErrorB
     };
     
     ErrorHandler.handle(error, errorType, context);
-    
+
+    // BUG FIX: Await promise to handle rejection properly
     if (this.props.enableSentry !== false) {
-      this.reportToSentry(error, errorInfo, errorId);
+      this.reportToSentry(error, errorInfo, errorId).catch(sentryError => {
+        console.warn('Failed to report error to Sentry:', sentryError);
+      });
     }
-    
+
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo, errorId);
@@ -505,12 +508,17 @@ export function useErrorHandler() {
       component: 'useErrorHandler',
       ...context
     });
-    
-    sentry.captureException(error, {
-      tags: { component: 'useErrorHandler' },
-      extra: context
-    });
-    
+
+    // BUG FIX: Check if sentry is available before using it
+    if (sentry) {
+      sentry.captureException(error, {
+        tags: { component: 'useErrorHandler' },
+        extra: context
+      }).catch((sentryError: Error) => {
+        console.warn('Failed to report error to Sentry:', sentryError);
+      });
+    }
+
     setError(error);
   }, []);
 

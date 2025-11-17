@@ -23,11 +23,39 @@ export class ImageEditor extends BaseEditor {
   }
 
   applyValue(value: string): void {
+    // Validate URL to prevent XSS via javascript: protocol
+    const sanitizedValue = this.sanitizeImageUrl(value);
+
     if (this.element.tagName === 'IMG') {
-      (this.element as HTMLImageElement).src = value;
+      (this.element as HTMLImageElement).src = sanitizedValue;
     } else {
-      this.element.style.backgroundImage = `url('${value}')`;
+      this.element.style.backgroundImage = `url('${sanitizedValue}')`;
     }
+  }
+
+  private sanitizeImageUrl(url: string): string {
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+
+    // Remove whitespace
+    const trimmed = url.trim();
+
+    // Allow http://, https://, data:image/,  // (protocol-relative), and / (absolute/relative paths)
+    const allowedProtocols = /^(https?:\/\/|data:image\/|\/\/|\/)/i;
+
+    if (!allowedProtocols.test(trimmed)) {
+      console.warn('Invalid image URL protocol. Only http://, https://, data:image/, and relative URLs are allowed.');
+      return '';
+    }
+
+    // Prevent javascript: and other dangerous protocols
+    if (/^(javascript|vbscript|data:(?!image\/))/i.test(trimmed)) {
+      console.error('Blocked dangerous URL protocol');
+      return '';
+    }
+
+    return trimmed;
   }
 
   private setupClickHandler(): void {

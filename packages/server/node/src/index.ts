@@ -440,16 +440,28 @@ class FileStorage implements StorageAdapter {
    * Validates file access is within allowed boundaries
    */
   private async validateFileAccess(filePath: string): Promise<void> {
-    const resolvedPath = path.resolve(filePath);
-    const resolvedBasePath = path.resolve(this.basePath);
-    
-    if (!resolvedPath.startsWith(resolvedBasePath)) {
+    // Use realpath to resolve symlinks and get actual path
+    let resolvedPath: string;
+    try {
+      resolvedPath = await this.fs.realpath(filePath);
+    } catch (error) {
+      // File doesn't exist yet (new file) - use resolve instead
+      resolvedPath = path.resolve(filePath);
+    }
+
+    const resolvedBasePath = await this.fs.realpath(this.basePath);
+
+    // Ensure path is within base directory with proper separator check
+    const normalizedPath = resolvedPath + path.sep;
+    const normalizedBase = resolvedBasePath + path.sep;
+
+    if (!normalizedPath.startsWith(normalizedBase) && resolvedPath !== resolvedBasePath) {
       throw new Error('File access denied: path outside storage directory');
     }
-    
+
     // Additional check - ensure we're not accessing hidden/system files
     const fileName = path.basename(filePath);
-    if (fileName.startsWith('.') && fileName !== '.json') {
+    if (fileName.startsWith('.')) {
       throw new Error('Access to hidden files not allowed');
     }
   }

@@ -99,7 +99,28 @@ export class JWTAuth {
       }
 
       const [encodedHeader, encodedPayload, signature] = parts;
-      
+
+      // SECURITY: Decode and validate header algorithm BEFORE signature verification
+      let header: { alg: string; typ: string };
+      try {
+        header = JSON.parse(this.base64UrlDecode(encodedHeader));
+      } catch (error) {
+        console.error('Invalid JWT header');
+        return null;
+      }
+
+      // CRITICAL: Reject "none" algorithm and validate algorithm matches expected
+      if (!header.alg || header.alg.toLowerCase() === 'none') {
+        console.error('JWT with "none" algorithm rejected');
+        return null;
+      }
+
+      // Validate algorithm is HS256 (or whichever we're using)
+      if (header.alg !== 'HS256') {
+        console.error(`JWT algorithm ${header.alg} not allowed. Expected HS256.`);
+        return null;
+      }
+
       // Verify signature
       const expectedSignature = this.sign(`${encodedHeader}.${encodedPayload}`);
       if (signature !== expectedSignature) {

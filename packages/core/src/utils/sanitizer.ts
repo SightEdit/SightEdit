@@ -139,9 +139,17 @@ export class HTMLSanitizer {
    * Extract only text content from HTML
    */
   static extractTextContent(html: string): string {
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    return temp.textContent || temp.innerText || '';
+    // Use DOMParser instead of innerHTML to avoid script execution
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      return doc.body.textContent || '';
+    } catch (error) {
+      // Fallback: sanitize first, then use textContent
+      const temp = document.createElement('div');
+      temp.textContent = html; // Use textContent, not innerHTML
+      return temp.textContent || '';
+    }
   }
 
   /**
