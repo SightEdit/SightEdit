@@ -33,7 +33,7 @@ export class HTTPClient {
 
   async request<T>(url: string, options: RequestOptions): Promise<T> {
     const fullURL = new URL(url, this.baseURL);
-    let lastError: Error;
+    let lastError: Error = new Error('Request failed after all retries');
 
     const maxRetries = options.retries ?? 0;
     const retryDelay = options.retryDelay ?? 1000;
@@ -64,8 +64,8 @@ export class HTTPClient {
         } else {
           return await response.blob() as unknown as T;
         }
-      } catch (error) {
-        lastError = error as Error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
 
         if (attempt < maxRetries && this.isRetryableError(error)) {
           await this.delay(retryDelay * Math.pow(2, attempt));
@@ -76,7 +76,7 @@ export class HTTPClient {
       }
     }
 
-    throw lastError!;
+    throw lastError;
   }
 
   private async executeRequest(url: URL, options: RequestOptions): Promise<Response> {

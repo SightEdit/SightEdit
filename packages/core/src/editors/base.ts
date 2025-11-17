@@ -118,12 +118,17 @@ export abstract class BaseEditor extends EventEmitter implements Editor {
       return 'This field is required';
     }
 
-    if (schema.minLength && valueToValidate.length < schema.minLength) {
-      return `Minimum length is ${schema.minLength}`;
+    // Only validate length for strings and arrays
+    if (schema.minLength && (typeof valueToValidate === 'string' || Array.isArray(valueToValidate))) {
+      if (valueToValidate.length < schema.minLength) {
+        return `Minimum length is ${schema.minLength}`;
+      }
     }
 
-    if (schema.maxLength && valueToValidate.length > schema.maxLength) {
-      return `Maximum length is ${schema.maxLength}`;
+    if (schema.maxLength && (typeof valueToValidate === 'string' || Array.isArray(valueToValidate))) {
+      if (valueToValidate.length > schema.maxLength) {
+        return `Maximum length is ${schema.maxLength}`;
+      }
     }
 
     if (schema.min !== undefined && valueToValidate < schema.min) {

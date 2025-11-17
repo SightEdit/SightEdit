@@ -378,13 +378,13 @@ export class ErrorHandler {
     retries: number = 3,
     delay: number = 1000
   ): Promise<T> {
-    let lastError: Error;
+    let lastError: Error = new Error('Operation failed after all retries');
 
     for (let i = 0; i <= retries; i++) {
       try {
         return await operation();
-      } catch (error) {
-        lastError = error as Error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
         
         if (i === retries) {
           this.handle(lastError, ErrorType.NETWORK, {
@@ -405,7 +405,7 @@ export class ErrorHandler {
       }
     }
 
-    throw lastError!;
+    throw lastError;
   }
 
   /**
@@ -564,8 +564,8 @@ export class ErrorHandler {
       ...config
     };
     
-    let lastError: Error | SightEditError;
-    
+    let lastError: Error | SightEditError = new Error('Operation failed after all retries');
+
     for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
       try {
         const result = await operation();
@@ -576,8 +576,8 @@ export class ErrorHandler {
           });
         }
         return result;
-      } catch (error) {
-        lastError = error as Error | SightEditError;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
         
         // Check if error is retryable
         const isRetryable = this.isRetryableError(lastError, retryConfig.retryableErrors);
@@ -614,10 +614,10 @@ export class ErrorHandler {
         }
       }
     }
-    
-    throw lastError!;
+
+    throw lastError;
   }
-  
+
   /**
    * Get error metrics
    */

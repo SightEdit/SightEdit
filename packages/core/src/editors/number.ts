@@ -232,9 +232,11 @@ export class NumberEditor extends BaseEditor {
     // Check for multiple currency symbols indicating multiple values (like "$100 €200 £300")
     const currencyMatches = text.match(/[$€£¥]/g);
     if (currencyMatches && currencyMatches.length > 1) {
-      // Multiple currencies - extract all numbers and concatenate
-      const numbers = text.match(/\d+/g) || [];
-      return parseInt(numbers.join(''));
+      // Multiple currencies detected - this is likely an error
+      // Extract the first number only, warn about invalid format
+      console.warn('Multiple currency symbols detected in number field. Using first value only.');
+      const firstNumber = text.match(/\d+(\.\d+)?/);
+      return firstNumber ? parseFloat(firstNumber[0]) : 0;
     }
     
     // Handle single number with European or US format

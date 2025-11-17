@@ -239,14 +239,17 @@ export class ElementDetector {
       if (this.TYPE_PATTERNS.date.test(content)) return 'date';
       if (this.TYPE_PATTERNS.number.test(content) && content.length < 20) return 'number';
       
-      // Simple JSON detection
-      if ((content.startsWith('{') && content.endsWith('}')) || 
+      // Simple JSON detection with size limit to prevent DoS
+      if ((content.startsWith('{') && content.endsWith('}')) ||
           (content.startsWith('[') && content.endsWith(']'))) {
-        try {
-          JSON.parse(content);
-          return 'json';
-        } catch {
-          // Not JSON, continue
+        // Limit JSON size to prevent DoS attacks
+        if (content.length < 10000) {
+          try {
+            JSON.parse(content);
+            return 'json';
+          } catch {
+            // Not JSON, continue
+          }
         }
       }
     }
@@ -293,9 +296,27 @@ export class ElementDetector {
       }
       if (current.dataset.sightContext) {
         try {
+          // Size limit to prevent DoS
+          if (current.dataset.sightContext.length > 10000) {
+            console.warn('sightContext data exceeds size limit');
+            break;
+          }
+
           const parsed = JSON.parse(current.dataset.sightContext);
-          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            Object.assign(context, parsed);
+
+          // Validate it's a plain object to prevent prototype pollution
+          if (parsed &&
+              typeof parsed === 'object' &&
+              !Array.isArray(parsed) &&
+              parsed.constructor === Object) {
+
+            // Safely copy properties, excluding dangerous keys
+            const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
+            for (const key of Object.keys(parsed)) {
+              if (!dangerousKeys.includes(key)) {
+                context[key] = parsed[key];
+              }
+            }
             break;
           }
         } catch {
@@ -306,15 +327,20 @@ export class ElementDetector {
     }
 
     // Extract context from URL
-    const url = new URL(window.location.href);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    
-    if (pathParts.length > 0) {
-      context.pageType = pathParts[0];
-    }
-    
-    if (pathParts.length > 1 && /^\d+$/.test(pathParts[1])) {
-      context.recordId = context.recordId || pathParts[1];
+    try {
+      const url = new URL(window.location.href);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+
+      if (pathParts.length > 0) {
+        context.pageType = pathParts[0];
+      }
+
+      if (pathParts.length > 1 && /^\d+$/.test(pathParts[1])) {
+        context.recordId = context.recordId || pathParts[1];
+      }
+    } catch (error) {
+      // URL construction failed - likely malformed location.href
+      console.warn('Failed to parse URL for context extraction:', error);
     }
 
     // Extract section context

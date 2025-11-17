@@ -282,6 +282,12 @@ export class SecurityManager {
       return this.config.xss.customSanitizer(html);
     }
 
+    // Check if DOMPurify is initialized
+    if (!this.domPurify) {
+      console.warn('DOMPurify not initialized, returning empty string');
+      return '';
+    }
+
     const options = this.getSanitizeOptions();
     return this.domPurify.sanitize(html, options);
   }
@@ -592,9 +598,9 @@ export class SecurityManager {
     this.threatHistory.clear();
   }
 
-  updateConfig(updates: Partial<SecurityConfig>): void {
+  async updateConfig(updates: Partial<SecurityConfig>): Promise<void> {
     this.config = { ...this.config, ...updates };
-    this.initialize(); // Re-initialize with new config
+    await this.initialize(); // Re-initialize with new config
   }
 
   getConfig(): Readonly<SecurityConfig> {

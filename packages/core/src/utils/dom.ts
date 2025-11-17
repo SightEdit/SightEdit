@@ -6,15 +6,35 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   const element = document.createElement(tag);
   
   if (attrs) {
+    // Allowlist of safe properties to prevent prototype pollution
+    const safeProperties = [
+      'id', 'className', 'title', 'textContent', 'innerHTML', 'value',
+      'placeholder', 'type', 'name', 'disabled', 'checked', 'selected',
+      'href', 'src', 'alt', 'width', 'height', 'tabIndex'
+    ];
+
     Object.entries(attrs).forEach(([key, value]) => {
+      // Block dangerous keys that could cause prototype pollution
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        console.warn(`Blocked dangerous property: ${key}`);
+        return;
+      }
+
       if (key === 'className') {
         element.className = value;
       } else if (key === 'style' && typeof value === 'object') {
         Object.assign(element.style, value);
       } else if (key.startsWith('data')) {
         element.setAttribute(key, value);
-      } else {
+      } else if (key.startsWith('aria-') || key.startsWith('on')) {
+        // Allow aria attributes and event handlers via setAttribute
+        element.setAttribute(key, value);
+      } else if (safeProperties.includes(key)) {
+        // Only set properties from the allowlist
         (element as any)[key] = value;
+      } else {
+        // For any other properties, use setAttribute as safer alternative
+        element.setAttribute(key, value);
       }
     });
   }
