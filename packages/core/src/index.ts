@@ -88,6 +88,76 @@ export {
 export { ComputedFieldManager, getGlobalComputedManager, resetGlobalComputedManager } from './transforms/computed-fields';
 export type { ComputedField } from './transforms/computed-fields';
 
+// Export component customization system (v2.0)
+export {
+  ComponentRegistry,
+  componentRegistry,
+  registerComponent,
+  unregisterComponent,
+  renderComponent,
+  hasComponentOverride
+} from './customization/ComponentRegistry';
+export type {
+  ComponentType,
+  ComponentProps,
+  ComponentRenderer,
+  ComponentOverride
+} from './customization/ComponentRegistry';
+
+// Export hook system (v2.0)
+export {
+  HookManager,
+  hookManager,
+  registerHook,
+  registerHooks,
+  unregisterHook,
+  clearHookEvent,
+  clearAllHooks,
+  executeHook,
+  executeHookParallel,
+  executeHookSync,
+  hasHooks
+} from './hooks/HookManager';
+export type {
+  HookEvent,
+  HookHandler,
+  Hook,
+  EditorHookContext,
+  ValueHookContext,
+  SaveHookContext,
+  BatchHookContext,
+  NetworkHookContext,
+  UIHookContext,
+  ModeHookContext,
+  PluginHookContext,
+  HookContext
+} from './hooks/HookManager';
+export {
+  HookEvents,
+  getEventsByCategory,
+  isEventInCategory,
+  getAllEvents,
+  EventMetadata,
+  getEventMetadata
+} from './hooks/events';
+
+// Export developer tools (v2.0)
+export {
+  DebugPanel,
+  debugPanel,
+  enableDebugMode
+} from './devtools/DebugPanel';
+export type { DebugPanelConfig, DebugEvent } from './devtools/DebugPanel';
+export {
+  PerformanceMonitor,
+  performanceMonitor,
+  measurePerformance,
+  startMeasure,
+  endMeasure,
+  getPerformanceReport
+} from './devtools/PerformanceMonitor';
+export type { PerformanceMetric, PerformanceReport } from './devtools/PerformanceMonitor';
+
 // Editor imports - Using enhanced modal versions
 import { BaseEditor } from './editors/base';
 import { TextEditor } from './editors/text';

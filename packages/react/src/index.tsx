@@ -243,8 +243,19 @@ export { useCollaboration } from './hooks/useCollaboration';
 export { useHistory } from './hooks/useHistory';
 export { useAutoSave } from './hooks/useAutoSave';
 
+// Export component override system (v2.0)
+export {
+  createReactComponentRenderer,
+  useComponentOverride,
+  ComponentOverrideProvider,
+  CustomToolbar,
+  CustomModal,
+  CustomButton,
+  CustomMessage
+} from './components/ComponentOverride';
+
 // Re-export types from core
-export type { 
+export type {
   SightEditConfig,
   SaveData,
   ElementType,

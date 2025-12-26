@@ -1,8 +1,24 @@
 {
   "name": "sightedit",
-  "version": "1.0.0",
+  "version": "2.0.0-alpha.1",
   "private": true,
-  "description": "Universal Visual Editing System",
+  "description": "Complete Visual Editing Ecosystem - Developer-focused inline editing with Visual Builder, Theme System, CMS Adapters, and GraphQL",
+  "keywords": [
+    "visual-editing",
+    "inline-editing",
+    "cms",
+    "headless-cms",
+    "contentful",
+    "strapi",
+    "sanity",
+    "wordpress",
+    "graphql",
+    "admin-panel",
+    "theme-system",
+    "content-management",
+    "wysiwyg",
+    "frontend-editing"
+  ],
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "build": "lerna run build",
@@ -35,7 +51,15 @@
     "docs:serve": "npx serve docs",
     "test:zero-errors": "node test-zero-errors.js",
     "test:zero-errors:runner": "node run-zero-error-test.js",
-    "test:zero-errors:verify": "node test-setup-verify.js"
+    "test:zero-errors:verify": "node test-setup-verify.js",
+    "admin": "cd packages/admin && npm run dev",
+    "admin:build": "cd packages/admin && npm run build",
+    "graphql": "cd packages/graphql-server && npm start",
+    "graphql:dev": "cd packages/graphql-server && npm run dev",
+    "dev:admin": "npm run admin",
+    "dev:graphql": "npm run graphql:dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run admin\" \"npm run graphql:dev\"",
+    "build:all": "npm run build && npm run admin:build"
   },
   "workspaces": [
     "packages/*",
@@ -48,6 +72,7 @@
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
+    "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
     "husky": "^8.0.3",
     "lerna": "^8.0.0",

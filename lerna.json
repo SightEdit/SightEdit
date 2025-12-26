@@ -1,5 +1,6 @@
 {
-  "version": "independent",
+  "$schema": "https://json.schemastore.org/lerna",
+  "version": "2.0.0-alpha.1",
   "npmClient": "npm",
   "packages": [
     "packages/*",
@@ -9,13 +10,52 @@
   "command": {
     "publish": {
       "conventionalCommits": true,
-      "message": "chore(release): publish",
+      "message": "chore(release): publish %s",
       "registry": "https://registry.npmjs.org",
-      "allowBranch": ["main", "master"]
+      "allowBranch": ["main", "master", "develop"],
+      "ignoreChanges": [
+        "**/__tests__/**",
+        "**/*.md",
+        "**/examples/**"
+      ],
+      "access": "public"
     },
     "version": {
-      "allowBranch": ["main", "master"],
-      "conventionalCommits": true
+      "allowBranch": ["main", "master", "develop"],
+      "conventionalCommits": true,
+      "createRelease": "github",
+      "message": "chore(release): publish %v"
+    },
+    "bootstrap": {
+      "hoist": true,
+      "npmClientArgs": ["--no-package-lock"],
+      "ignore": [
+        "@sightedit/admin",
+        "@sightedit/graphql-server"
+      ]
+    },
+    "run": {
+      "npmClient": "npm",
+      "stream": true
     }
+  },
+  "ignoreChanges": [
+    "**/__fixtures__/**",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.md"
+  ],
+  "changelog": {
+    "repo": "sightedit/sightedit",
+    "labels": {
+      "tag: breaking": ":boom: Breaking Changes",
+      "tag: enhancement": ":rocket: New Features",
+      "tag: bug": ":bug: Bug Fixes",
+      "tag: docs": ":memo: Documentation",
+      "tag: performance": ":zap: Performance",
+      "tag: internal": ":house: Internal"
+    },
+    "cacheDir": ".changelog"
   }
 }
