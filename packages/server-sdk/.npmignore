@@ -1,0 +1,35 @@
+# Source files (publish only dist)
+src/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+.eslintrc*
+.prettierrc*
+
+# Development
+node_modules/
+.vscode/
+.idea/
+*.log
+
+# Tests
+__tests__/
+*.test.ts
+*.spec.ts
+coverage/
+
+# Examples (keep in package)
+# examples/ is included
+
+# Build artifacts
+.cache/
+
+# IDE
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

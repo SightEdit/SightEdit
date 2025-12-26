@@ -112,40 +112,105 @@ docs: update API reference for batch operations
 - Update docs/ for user-facing changes
 - Include examples for new features
 
-## Project Structure
+## Project Structure (v2.0)
 
 ```
 sightedit/
 ├── packages/
-│   ├── core/          # Main library
-│   ├── react/         # React adapter
-│   ├── vue/           # Vue adapter
-│   └── server/        # Backend handlers
-├── examples/          # Example implementations
-├── docs/              # Documentation
-└── tests/             # Test suites
+│   ├── core/              # Core library + theme + hooks + transforms
+│   ├── react/             # React integration + component overrides
+│   ├── vue/               # Vue 3 integration
+│   ├── admin/             # Visual Builder / Admin Panel (NEW in v2.0)
+│   ├── cms-adapters/      # CMS integrations (NEW in v2.0)
+│   ├── graphql-server/    # GraphQL API (NEW in v2.0)
+│   ├── server-sdk/        # Custom backend SDK (NEW in v2.0)
+│   ├── server/node/       # Node.js server (legacy)
+│   ├── server/php/        # PHP server (legacy)
+│   └── plugin-*/          # Plugins
+├── examples/              # Example implementations
+├── docs/                  # Documentation
+├── e2e/                   # End-to-end tests
+└── website/               # Documentation website
 ```
 
 ## Development Workflow
 
-1. **Core Package**: Main SightEdit functionality
-   ```bash
-   cd packages/core
-   npm run dev
-   ```
+### 1. Core Package (Enhanced in v2.0)
 
-2. **Examples**: Test your changes
-   ```bash
-   cd examples/vanilla-html
-   # Open index.html in browser
-   ```
+```bash
+cd packages/core
+npm run dev
+```
 
-3. **Testing**: Run tests
-   ```bash
-   npm test        # All tests
-   npm run test:unit   # Unit tests only
-   npm run test:e2e    # E2E tests only
-   ```
+**Features to work on:**
+- Inline editing (12 element types)
+- Theme system (CSS-in-JS)
+- Hook system (40+ events)
+- Transform pipeline
+- Component overrides
+- Developer tools
+
+### 2. Visual Builder (NEW in v2.0)
+
+```bash
+cd packages/admin
+npm install
+npm run dev
+# Opens at http://localhost:5173
+```
+
+**Features to work on:**
+- Schema Configuration Builder
+- Theme Builder
+- Attribute Generator
+- Live Preview
+
+### 3. GraphQL Server (NEW in v2.0)
+
+```bash
+cd packages/graphql-server
+npm install
+npm start
+# HTTP: http://localhost:4000/graphql
+# WS: ws://localhost:4000/graphql
+```
+
+**Features to work on:**
+- GraphQL schema
+- Resolvers
+- Subscriptions
+- Storage adapters
+
+### 4. CMS Adapters (NEW in v2.0)
+
+```bash
+cd packages/cms-adapters
+npm run build
+```
+
+**Adapters:**
+- Contentful
+- Strapi
+- Sanity
+- WordPress
+
+### 5. Run Everything
+
+```bash
+# Run all packages in parallel
+npm run dev:all
+```
+
+### 6. Testing
+
+```bash
+npm test            # All tests
+npm run test:unit   # Unit tests only
+npm run test:e2e    # E2E tests only
+npm run typecheck   # TypeScript checks
+npm run lint        # Linting
+npm run build:all   # Build all packages
+```
 
 ## Getting Help
 
