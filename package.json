@@ -63,8 +63,7 @@
   },
   "workspaces": [
     "packages/*",
-    "examples/*",
-    "website"
+    "examples/*"
   ],
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
