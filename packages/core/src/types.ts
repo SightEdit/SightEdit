@@ -79,6 +79,136 @@ export interface ThemeConfig {
   zIndex?: number;
 }
 
+// Advanced Theme Configuration for v2.0
+export interface AdvancedThemeConfig {
+  mode: 'light' | 'dark';
+  colors: {
+    primary: string;
+    primaryLight: string;
+    primaryDark: string;
+    onPrimary: string;
+    secondary: string;
+    secondaryLight: string;
+    secondaryDark: string;
+    onSecondary: string;
+    success: string;
+    error: string;
+    warning: string;
+    info: string;
+    background: string;
+    surface: string;
+    onBackground: string;
+    onSurface: string;
+    neutral: {
+      50: string;
+      100: string;
+      200: string;
+      300: string;
+      400: string;
+      500: string;
+      600: string;
+      700: string;
+      800: string;
+      900: string;
+    };
+  };
+  typography: {
+    fontFamily: {
+      sans: string;
+      serif: string;
+      mono: string;
+    };
+    fontSize: {
+      xs: string;
+      sm: string;
+      base: string;
+      lg: string;
+      xl: string;
+      '2xl': string;
+      '3xl': string;
+      '4xl': string;
+    };
+    fontWeight: {
+      light: number;
+      normal: number;
+      medium: number;
+      semibold: number;
+      bold: number;
+    };
+    lineHeight: {
+      tight: number;
+      normal: number;
+      relaxed: number;
+    };
+  };
+  spacing: {
+    0: string;
+    1: string;
+    2: string;
+    3: string;
+    4: string;
+    5: string;
+    6: string;
+    8: string;
+    10: string;
+    12: string;
+    16: string;
+    20: string;
+    24: string;
+  };
+  borderRadius: {
+    none: string;
+    sm: string;
+    base: string;
+    md: string;
+    lg: string;
+    xl: string;
+    '2xl': string;
+    full: string;
+  };
+  shadows: {
+    sm: string;
+    base: string;
+    md: string;
+    lg: string;
+    xl: string;
+    '2xl': string;
+    none: string;
+  };
+  zIndex: {
+    base: number;
+    dropdown: number;
+    sticky: number;
+    fixed: number;
+    modalBackdrop: number;
+    modal: number;
+    popover: number;
+    tooltip: number;
+    toolbar: number;
+  };
+  components?: {
+    toolbar?: ComponentTheme;
+    modal?: ComponentTheme;
+    editor?: ComponentTheme;
+    [key: string]: ComponentTheme | undefined;
+  };
+}
+
+export interface ComponentTheme {
+  background?: string;
+  color?: string;
+  padding?: string;
+  borderRadius?: string;
+  border?: string;
+  boxShadow?: string;
+  hover?: Partial<ComponentTheme>;
+  active?: Partial<ComponentTheme>;
+  disabled?: Partial<ComponentTheme>;
+  sm?: Partial<ComponentTheme>;
+  md?: Partial<ComponentTheme>;
+  lg?: Partial<ComponentTheme>;
+}
+
 export interface Plugin {
   name: string;
   version: string;

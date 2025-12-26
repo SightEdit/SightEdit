@@ -46,6 +46,48 @@ export {
 export { ValidationEngine } from './utils/validation-engine';
 export type { ValidationRule, ValidationSchema } from './utils/validation-engine';
 
+// Export theme system (v2.0)
+export { SightEditThemeProvider, useTheme, isAdvancedTheme } from './theme/ThemeProvider';
+export { ThemeSwitcher, getThemeSwitcher } from './theme/ThemeSwitcher';
+export { defaultLightTheme, defaultDarkTheme, themePresets } from './theme/tokens';
+export {
+  getThemedStyles,
+  getHoverStyles,
+  getActiveStyles,
+  applyThemeToElement,
+  createThemedClass,
+  themeToCSSVars,
+  colorWithOpacity,
+  lightenColor,
+  darkenColor,
+  getSpacing,
+  getFontSize,
+  buildInlineStyles
+} from './theme/utils';
+export type { AdvancedThemeConfig, ComponentTheme } from './types';
+
+// Export transformation pipeline (v2.0)
+export { TransformPipeline, getGlobalPipeline, resetGlobalPipeline } from './transforms/TransformPipeline';
+export type { Transform, TransformContext, TransformFunction } from './transforms/TransformPipeline';
+export {
+  builtInTransforms,
+  sanitizerTransform,
+  markdownTransform,
+  imageOptimizeTransform,
+  currencyTransform,
+  slugifyTransform,
+  uppercaseTransform,
+  lowercaseTransform,
+  trimTransform,
+  numberFormatTransform,
+  dateFormatTransform,
+  jsonParseTransform,
+  jsonStringifyTransform,
+  registerBuiltInTransforms
+} from './transforms/built-in';
+export { ComputedFieldManager, getGlobalComputedManager, resetGlobalComputedManager } from './transforms/computed-fields';
+export type { ComputedField } from './transforms/computed-fields';
+
 // Editor imports - Using enhanced modal versions
 import { BaseEditor } from './editors/base';
 import { TextEditor } from './editors/text';
